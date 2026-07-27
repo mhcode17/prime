@@ -2,8 +2,65 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentCompany } from "@/lib/current";
+import { hashPassword } from "@/lib/auth/password";
+
+const createDriverSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  email: z.string().email("Enter a valid email"),
+  phone: z.string().optional(),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  status: z.enum(["PENDING", "ACTIVE"]),
+  dateOfBirth: z.string().optional(),
+  licenseNumber: z.string().optional(),
+  licenseState: z.string().optional(),
+});
+
+/** Company manually creates a driver (with a login account) under the active company. */
+export async function createDriver(
+  _prev: { error?: string } | undefined,
+  formData: FormData,
+): Promise<{ error?: string } | undefined> {
+  const { companyId } = await getCurrentCompany("drivers");
+  const parsed = createDriverSchema.safeParse(
+    Object.fromEntries(formData.entries()),
+  );
+  if (!parsed.success) return { error: parsed.error.errors[0].message };
+  const d = parsed.data;
+
+  const existing = await prisma.user.findUnique({
+    where: { email: d.email.toLowerCase() },
+  });
+  if (existing) return { error: "An account with this email already exists" };
+
+  const user = await prisma.user.create({
+    data: {
+      email: d.email.toLowerCase(),
+      passwordHash: await hashPassword(d.password),
+      role: "DRIVER",
+      firstName: d.firstName,
+      lastName: d.lastName,
+      phone: d.phone || null,
+      driverProfile: {
+        create: {
+          companyId,
+          status: d.status,
+          dateOfBirth: d.dateOfBirth ? new Date(d.dateOfBirth) : null,
+          licenseNumber: d.licenseNumber || null,
+          licenseState: d.licenseState || null,
+          hireDate: d.status === "ACTIVE" ? new Date() : null,
+        },
+      },
+    },
+    include: { driverProfile: true },
+  });
+
+  revalidatePath("/company/drivers");
+  redirect(`/company/drivers/${user.driverProfile!.id}`);
+}
 
 // Ensure the driver belongs to the current company; returns driver or throws.
 async function assertOwnDriver(driverId: string) {
