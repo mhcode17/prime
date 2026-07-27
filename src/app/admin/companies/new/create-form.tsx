@@ -95,6 +95,7 @@ export function CreateCompanyForm() {
               <Button
                 type="button"
                 variant="outline"
+                className="shrink-0"
                 onClick={() => doLookup("dot")}
                 disabled={looking}
               >
@@ -114,6 +115,7 @@ export function CreateCompanyForm() {
               <Button
                 type="button"
                 variant="outline"
+                className="shrink-0"
                 onClick={() => doLookup("mc")}
                 disabled={looking}
               >
