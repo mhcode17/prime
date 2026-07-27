@@ -1,0 +1,572 @@
+// Trucking CRM — domain schema
+// Postgres. Regenerate client with `npm run db:generate`.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Identity & tenancy
+// ─────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN // platform administrator (manages all companies/users)
+  COMPANY // company manager/staff
+  DRIVER // driver
+}
+
+enum CompanyStatus {
+  PENDING // registered, awaiting admin approval
+  ACTIVE
+  SUSPENDED
+}
+
+// Sub-role for COMPANY users: the owner (full control incl. staff & settings)
+// vs. managers who only get the permissions the owner grants.
+enum CompanyRole {
+  OWNER
+  MANAGER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         Role
+  firstName    String
+  lastName     String
+  phone        String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Company staff / manager belongs to a company
+  companyId   String?
+  company     Company? @relation("CompanyStaff", fields: [companyId], references: [id], onDelete: Cascade)
+  companyRole CompanyRole? // OWNER or MANAGER (only for COMPANY users)
+  permissions String[]     @default([]) // granted module keys for MANAGERs
+
+  // Support tickets authored by this user
+  supportTickets        SupportTicket[]        @relation("TicketCreator")
+  supportTicketMessages SupportTicketMessage[] @relation("TicketMessageSender")
+
+  // Driver-specific profile (1:1) when role == DRIVER
+  driverProfile Driver?
+
+  // Messaging
+  sentMessages Message[] @relation("MessageSender")
+
+  // Audit-ish authorship
+  uploadedDocuments Document[] @relation("DocumentUploader")
+
+  @@index([companyId])
+  @@index([role])
+}
+
+model Company {
+  id            String        @id @default(cuid())
+  name          String
+  dotNumber     String?       @unique // USDOT number
+  mcNumber      String?
+  status        CompanyStatus @default(PENDING)
+  address       String?
+  city          String?
+  state         String?
+  zip           String?
+  phone         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  staff        User[]        @relation("CompanyStaff")
+  drivers      Driver[]
+  documents    Document[]
+  trucks       Truck[]
+  trailers     Trailer[]
+  appointments Appointment[]
+  conversations Conversation[]
+  supportTickets SupportTicket[]
+
+  @@index([status])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Drivers
+// ─────────────────────────────────────────────────────────────
+
+enum DriverStatus {
+  PENDING // in hiring/onboarding process
+  ACTIVE // fully hired
+  TERMINATED
+}
+
+model Driver {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  status DriverStatus @default(PENDING)
+
+  // Personal / hiring info
+  dateOfBirth   DateTime?
+  ssnLast4      String?
+  licenseNumber String?
+  licenseState  String?
+  licenseClass  String? // A / B / C
+  licenseExpiry DateTime?
+  hireDate      DateTime?
+  terminationDate DateTime?
+  address       String?
+  city          String?
+  state         String?
+  zip           String?
+  emergencyContactName  String?
+  emergencyContactPhone String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Related records
+  documentAssignments DocumentAssignment[]
+  screenings          ScreeningReport[]
+  drugTests           DrugTest[]
+  clearinghouseQueries ClearinghouseQuery[]
+  appointments        Appointment[]
+  truckAssignments    EquipmentAssignment[]
+
+  @@index([companyId])
+  @@index([status])
+}
+
+// ─────────────────────────────────────────────────────────────
+// E-sign documents (DocuSign-style)
+// ─────────────────────────────────────────────────────────────
+
+enum SignatureStatus {
+  SENT // assigned to driver, awaiting signature
+  VIEWED
+  SIGNED
+  DECLINED
+  VOIDED
+}
+
+// A document template/file created by a company
+model Document {
+  id         String  @id @default(cuid())
+  companyId  String
+  company    Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  // File stored as base64/data or a storage URL. For MVP: data URL / text.
+  fileName    String?
+  fileType    String? // application/pdf, etc.
+  content     String? @db.Text // base64 payload or plain text body
+
+  uploadedById String?
+  uploadedBy   User?   @relation("DocumentUploader", fields: [uploadedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignments DocumentAssignment[]
+  fields      DocumentField[]
+
+  @@index([companyId])
+}
+
+// Type of a placeable field on a PDF document.
+enum FieldType {
+  SIGNATURE // driver draws a signature
+  INITIALS // driver draws/types initials
+  DATE_SIGNED // auto: the date the driver signs
+  FULL_NAME // auto: driver first + last name
+  DATE_OF_BIRTH // auto: from driver profile
+  LICENSE_NUMBER // auto: from driver profile
+  LICENSE_STATE // auto: from driver profile
+  ADDRESS // auto: from driver profile
+  PHONE // auto: from driver user
+  EMAIL // auto: from driver user
+  TEXT // free text the driver fills in
+}
+
+// A field placed by the company at a specific spot on the document.
+// Positions are stored as fractions (0..1) of the page width/height so they
+// render correctly at any zoom level and map cleanly to PDF points.
+model DocumentField {
+  id         String   @id @default(cuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  type  FieldType
+  page  Int     @default(0) // 0-based page index
+  x     Float // left, fraction of page width
+  y     Float // top, fraction of page height
+  w     Float // width, fraction of page width
+  h     Float // height, fraction of page height
+  label String? // optional label for TEXT fields
+  required Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@index([documentId])
+}
+
+// A document sent to a specific driver to sign
+model DocumentAssignment {
+  id         String @id @default(cuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  driverId   String
+  driver     Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  status       SignatureStatus @default(SENT)
+  signatureData String?        @db.Text // captured signature (data URL / typed name)
+  signedName    String?
+  signedAt      DateTime?
+  viewedAt      DateTime?
+  declinedReason String?
+
+  // Field-based signing (DocuSign-style)
+  fieldValues Json?   // { [fieldId]: string } — resolved auto-fill + signatures
+  signedPdf   String? @db.Text // base64 data URL of the completed, flattened PDF
+  contentHash String? // SHA-256 (hex) of the signed PDF bytes — used on the certificate
+  signerIp    String? // captured at signing time for the audit trail
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([documentId, driverId])
+  @@index([driverId])
+  @@index([status])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Screening: PSP / MVR (via Samba Safety — mocked)
+// ─────────────────────────────────────────────────────────────
+
+enum ScreeningType {
+  PSP // Pre-Employment Screening Program
+  MVR // Motor Vehicle Report
+}
+
+enum ScreeningStatus {
+  REQUESTED
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+model ScreeningReport {
+  id       String @id @default(cuid())
+  driverId String
+  driver   Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  type   ScreeningType
+  status ScreeningStatus @default(REQUESTED)
+
+  provider     String   @default("samba_safety")
+  externalRef  String?  // provider order id
+  requestedAt  DateTime @default(now())
+  completedAt  DateTime?
+  // Structured result payload (JSON) from provider
+  resultJson   Json?
+  violationCount Int?
+  summary       String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([driverId])
+  @@index([type])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Drug test
+// ─────────────────────────────────────────────────────────────
+
+enum DrugTestType {
+  PRE_EMPLOYMENT
+  RANDOM
+  POST_ACCIDENT
+  REASONABLE_SUSPICION
+  RETURN_TO_DUTY
+  FOLLOW_UP
+}
+
+enum DrugTestStatus {
+  ORDERED
+  SCHEDULED
+  COMPLETED_NEGATIVE
+  COMPLETED_POSITIVE
+  CANCELLED
+}
+
+model DrugTest {
+  id       String @id @default(cuid())
+  driverId String
+  driver   Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  type   DrugTestType   @default(PRE_EMPLOYMENT)
+  status DrugTestStatus @default(ORDERED)
+
+  labName     String?
+  scheduledAt DateTime?
+  completedAt DateTime?
+  notes       String?  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([driverId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// FMCSA Clearinghouse queries
+// ─────────────────────────────────────────────────────────────
+
+enum ClearinghouseQueryType {
+  PRE_EMPLOYMENT_FULL
+  LIMITED
+  ANNUAL
+}
+
+enum ClearinghouseStatus {
+  REQUESTED
+  CONSENT_PENDING
+  COMPLETED_CLEAR
+  COMPLETED_VIOLATION
+}
+
+model ClearinghouseQuery {
+  id       String @id @default(cuid())
+  driverId String
+  driver   Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  type   ClearinghouseQueryType @default(PRE_EMPLOYMENT_FULL)
+  status ClearinghouseStatus    @default(REQUESTED)
+
+  requestedAt DateTime  @default(now())
+  completedAt DateTime?
+  resultJson  Json?
+  notes       String?   @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([driverId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Orientation appointments (calendar booking)
+// ─────────────────────────────────────────────────────────────
+
+enum AppointmentType {
+  ORIENTATION
+  DRUG_TEST
+  ROAD_TEST
+  OTHER
+}
+
+enum AppointmentStatus {
+  OPEN // free slot available to book
+  BOOKED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+// A slot is created by the company. It can be pre-assigned to a driver
+// (company picks the date) or left OPEN for a driver to self-book.
+model Appointment {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  driverId String?
+  driver   Driver? @relation(fields: [driverId], references: [id], onDelete: SetNull)
+
+  type     AppointmentType   @default(ORIENTATION)
+  status   AppointmentStatus @default(OPEN)
+  startsAt DateTime
+  endsAt   DateTime
+  location String?
+  notes    String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([driverId])
+  @@index([startsAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Equipment: trucks & trailers
+// ─────────────────────────────────────────────────────────────
+
+enum EquipmentStatus {
+  AVAILABLE
+  ASSIGNED
+  MAINTENANCE
+  OUT_OF_SERVICE
+}
+
+model Truck {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  unitNumber String
+  make       String?
+  model      String?
+  year       Int?
+  vin        String?
+  plate      String?
+  status     EquipmentStatus @default(AVAILABLE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignments EquipmentAssignment[]
+
+  @@index([companyId])
+}
+
+model Trailer {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  unitNumber String
+  type       String? // dry van, reefer, flatbed...
+  year       Int?
+  vin        String?
+  plate      String?
+  status     EquipmentStatus @default(AVAILABLE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignments EquipmentAssignment[]
+
+  @@index([companyId])
+}
+
+// Assignment of a truck and/or trailer to a driver
+model EquipmentAssignment {
+  id       String @id @default(cuid())
+  driverId String
+  driver   Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  truckId   String?
+  truck     Truck?   @relation(fields: [truckId], references: [id], onDelete: SetNull)
+  trailerId String?
+  trailer   Trailer? @relation(fields: [trailerId], references: [id], onDelete: SetNull)
+
+  assignedAt   DateTime  @default(now())
+  unassignedAt DateTime?
+  active       Boolean   @default(true)
+
+  @@index([driverId])
+  @@index([truckId])
+  @@index([trailerId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Messaging (company <-> driver)
+// ─────────────────────────────────────────────────────────────
+
+// One conversation per (company, driver) pair
+model Conversation {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  driverId  String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages Message[]
+
+  @@unique([companyId, driverId])
+  @@index([driverId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  senderId String
+  sender   User   @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  body   String   @db.Text
+  readAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([conversationId])
+  @@index([senderId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Support tickets (company → platform admin)
+// ─────────────────────────────────────────────────────────────
+
+enum TicketStatus {
+  OPEN // awaiting admin response
+  PENDING // admin replied, awaiting company
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model SupportTicket {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdById String
+  createdBy   User   @relation("TicketCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  subject  String
+  status   TicketStatus   @default(OPEN)
+  priority TicketPriority @default(NORMAL)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages SupportTicketMessage[]
+
+  @@index([companyId])
+  @@index([status])
+}
+
+model SupportTicketMessage {
+  id       String        @id @default(cuid())
+  ticketId String
+  ticket   SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  senderId String
+  sender   User   @relation("TicketMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  body      String   @db.Text
+  fromAdmin Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([ticketId])
+}

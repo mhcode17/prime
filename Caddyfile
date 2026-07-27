@@ -1,0 +1,6 @@
+# Caddy automatically provisions and renews a Let's Encrypt TLS certificate
+# for {$DOMAIN}. Point an A record for your domain at the droplet's IP first.
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy app:3000
+}
