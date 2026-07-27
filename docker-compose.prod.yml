@@ -1,6 +1,7 @@
-# Production stack for a DigitalOcean Droplet.
-# Lives at /opt/trucking-crm on the server. Values come from /opt/trucking-crm/.env
-# (created once on the server — never committed).
+# Production stack for a DigitalOcean Droplet that already runs nginx on 80/443.
+# The app is published on 127.0.0.1:8090 and fronted by the host's existing
+# nginx (reverse proxy + TLS). Lives at /opt/trucking-crm on the server;
+# values come from /opt/trucking-crm/.env (created on the server, never committed).
 
 services:
   db:
@@ -28,25 +29,9 @@ services:
       DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
       AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
-    expose:
-      - "3000"
-
-  caddy:
-    image: caddy:2-alpine
-    restart: always
-    depends_on:
-      - app
+    # Bind to localhost only — the host nginx proxies to it.
     ports:
-      - "80:80"
-      - "443:443"
-    environment:
-      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
+      - "127.0.0.1:8090:3000"
 
 volumes:
   pgdata:
-  caddy_data:
-  caddy_config:
