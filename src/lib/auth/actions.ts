@@ -75,17 +75,21 @@ export async function registerCompanyAction(
   });
   if (existing) return { error: "An account with this email already exists" };
 
+  const org = await prisma.organization.create({ data: { name: d.companyName } });
   const company = await prisma.company.create({
     data: {
       name: d.companyName,
       dotNumber: d.dotNumber || null,
       status: "PENDING",
+      organizationId: org.id,
       staff: {
         create: {
           email: d.email.toLowerCase(),
           passwordHash: await hashPassword(d.password),
           role: "COMPANY",
           companyRole: "OWNER",
+          organizationId: org.id,
+          isOrgAdmin: true,
           firstName: d.firstName,
           lastName: d.lastName,
           phone: d.phone || null,

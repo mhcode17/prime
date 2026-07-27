@@ -10,7 +10,7 @@ export function Topbar({
 }: {
   name: string;
   email: string;
-  subtitle?: string;
+  subtitle?: React.ReactNode;
 }) {
   const [first, ...rest] = name.split(" ");
   return (

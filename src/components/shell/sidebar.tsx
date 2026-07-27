@@ -18,13 +18,15 @@ export function Sidebar({
   role,
   permissions = [],
   isOwner = false,
+  isOrgAdmin = false,
 }: {
   role: ShellRole;
   permissions?: string[];
   isOwner?: boolean;
+  isOrgAdmin?: boolean;
 }) {
   const pathname = usePathname();
-  const items = getNavItems(role, { permissions, isOwner });
+  const items = getNavItems(role, { permissions, isOwner, isOrgAdmin });
 
   return (
     <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-200 bg-white lg:flex">

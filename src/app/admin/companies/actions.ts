@@ -77,6 +77,7 @@ export async function createCompanyByAdmin(
     if (dotClash) return { error: "That USDOT number is already in use" };
   }
 
+  const org = await prisma.organization.create({ data: { name: d.companyName } });
   const company = await prisma.company.create({
     data: {
       name: d.companyName,
@@ -86,12 +87,15 @@ export async function createCompanyByAdmin(
       state: d.state || null,
       phone: d.phone || null,
       status: d.status as CompanyStatus,
+      organizationId: org.id,
       staff: {
         create: {
           email: d.email.toLowerCase(),
           passwordHash: await hashPassword(d.password),
           role: "COMPANY",
           companyRole: "OWNER",
+          organizationId: org.id,
+          isOrgAdmin: true,
           firstName: d.firstName,
           lastName: d.lastName,
           phone: d.phone || null,

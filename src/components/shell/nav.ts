@@ -26,6 +26,7 @@ export interface NavItem {
   icon: LucideIcon;
   perm?: PermissionKey; // required permission (managers); owners always see it
   ownerOnly?: boolean; // only company owners see it
+  orgAdminOnly?: boolean; // only organization admins see it
   children?: { label: string; href: string; icon: LucideIcon }[];
 }
 
@@ -51,7 +52,8 @@ export const companyNav: NavItem[] = [
   { label: "Trailers", href: "/company/trailers", icon: Container, perm: "equipment" },
   { label: "Messages", href: "/company/messages", icon: MessagesSquare, perm: "messages" },
   { label: "Support", href: "/company/support", icon: LifeBuoy },
-  { label: "Team", href: "/company/staff", icon: UserCog, ownerOnly: true },
+  { label: "Companies", href: "/company/organization", icon: Building2, orgAdminOnly: true },
+  { label: "Team & Access", href: "/company/staff", icon: UserCog, orgAdminOnly: true },
   { label: "Company Settings", href: "/company/settings", icon: Settings, ownerOnly: true },
 ];
 
@@ -83,12 +85,13 @@ export const NAV_BY_ROLE: Record<ShellRole, NavItem[]> = {
  *  owner/permission filtering. Used by both the desktop and mobile menus. */
 export function getNavItems(
   role: ShellRole,
-  opts: { permissions?: string[]; isOwner?: boolean } = {},
+  opts: { permissions?: string[]; isOwner?: boolean; isOrgAdmin?: boolean } = {},
 ): NavItem[] {
-  const { permissions = [], isOwner = false } = opts;
+  const { permissions = [], isOwner = false, isOrgAdmin = false } = opts;
   const all = NAV_BY_ROLE[role] ?? [];
   if (role !== "COMPANY") return all;
   return all.filter((item) => {
+    if (item.orgAdminOnly) return isOrgAdmin;
     if (item.ownerOnly) return isOwner;
     if (item.perm) return isOwner || permissions.includes(item.perm);
     return true;

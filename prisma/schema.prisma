@@ -45,11 +45,20 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  // Company staff / manager belongs to a company
+  // Company staff / manager belongs to a company (legacy "primary" company;
+  // real access is now via Organization membership + CompanyMembership).
   companyId   String?
   company     Company? @relation("CompanyStaff", fields: [companyId], references: [id], onDelete: Cascade)
-  companyRole CompanyRole? // OWNER or MANAGER (only for COMPANY users)
-  permissions String[]     @default([]) // granted module keys for MANAGERs
+  companyRole CompanyRole? // OWNER or MANAGER (only for COMPANY users) — legacy
+  permissions String[]     @default([]) // legacy per-user grants
+
+  // Organization (holding) membership
+  organizationId String?
+  organization   Organization? @relation("OrgMembers", fields: [organizationId], references: [id], onDelete: SetNull)
+  isOrgAdmin     Boolean       @default(false) // full access to every company in the org
+
+  // Per-company access grants (for managers who aren't org admins)
+  memberships CompanyMembership[]
 
   // Support tickets authored by this user
   supportTickets        SupportTicket[]        @relation("TicketCreator")
@@ -65,7 +74,20 @@ model User {
   uploadedDocuments Document[] @relation("DocumentUploader")
 
   @@index([companyId])
+  @@index([organizationId])
   @@index([role])
+}
+
+// A holding / group that owns one or more companies. Its admin (a company
+// user with isOrgAdmin) has full access to every company in the organization.
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  companies Company[]
+  members   User[]    @relation("OrgMembers")
 }
 
 model Company {
@@ -82,7 +104,11 @@ model Company {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
   staff        User[]        @relation("CompanyStaff")
+  memberships  CompanyMembership[]
   drivers      Driver[]
   documents    Document[]
   trucks       Truck[]
@@ -92,6 +118,26 @@ model Company {
   supportTickets SupportTicket[]
 
   @@index([status])
+  @@index([organizationId])
+}
+
+// Grants a (non-org-admin) user access to a specific company with a role and
+// a set of module permissions.
+model CompanyMembership {
+  id        String  @id @default(cuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  companyRole CompanyRole @default(MANAGER)
+  permissions String[]    @default([])
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, companyId])
+  @@index([userId])
+  @@index([companyId])
 }
 
 // ─────────────────────────────────────────────────────────────

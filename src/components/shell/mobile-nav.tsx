@@ -20,6 +20,7 @@ export function MobileNav({
   role,
   permissions = [],
   isOwner = false,
+  isOrgAdmin = false,
   name,
   email,
   subtitle,
@@ -27,13 +28,14 @@ export function MobileNav({
   role: ShellRole;
   permissions?: string[];
   isOwner?: boolean;
+  isOrgAdmin?: boolean;
   name: string;
   email: string;
   subtitle?: string;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const items = getNavItems(role, { permissions, isOwner });
+  const items = getNavItems(role, { permissions, isOwner, isOrgAdmin });
 
   // Close the drawer whenever the route changes.
   useEffect(() => {

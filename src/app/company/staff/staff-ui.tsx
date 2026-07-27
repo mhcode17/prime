@@ -3,21 +3,18 @@
 import { useActionState, useState, useTransition } from "react";
 import { PERMISSIONS } from "@/lib/permissions";
 import {
-  createManager,
-  updateManagerPermissions,
-  setManagerActive,
-  removeManager,
+  createMember,
+  grantMembership,
+  revokeMembership,
+  setMemberActive,
+  removeMember,
 } from "./actions";
 import { Button } from "@/components/ui/button";
-import { Input, Label } from "@/components/ui/input";
+import { Input, Label, Select } from "@/components/ui/input";
 
-function PermissionChecklist({
-  namePrefix,
-  defaults,
-}: {
-  namePrefix: string;
-  defaults: string[];
-}) {
+type Company = { id: string; name: string };
+
+function PermissionChecklist({ namePrefix }: { namePrefix: string }) {
   return (
     <div className="grid gap-2 sm:grid-cols-2">
       {PERMISSIONS.map((p) => (
@@ -25,7 +22,6 @@ function PermissionChecklist({
           <input
             type="checkbox"
             name={`${namePrefix}${p.key}`}
-            defaultChecked={defaults.includes(p.key)}
             className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600"
           />
           <span>
@@ -38,11 +34,11 @@ function PermissionChecklist({
   );
 }
 
-export function AddManagerForm() {
+export function AddMemberForm({ companies }: { companies: Company[] }) {
   const [state, action, pending] = useActionState<
     { error?: string; ok?: boolean } | undefined,
     FormData
-  >(createManager, undefined);
+  >(createMember, undefined);
 
   return (
     <form action={action} className="space-y-4" key={state?.ok ? "r" : "f"}>
@@ -51,7 +47,7 @@ export function AddManagerForm() {
       )}
       {state?.ok && (
         <div className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">
-          Manager added. They can now sign in with the email &amp; password you set.
+          Member added. They can sign in and will land on the assigned company.
         </div>
       )}
       <div className="grid grid-cols-2 gap-3">
@@ -75,25 +71,39 @@ export function AddManagerForm() {
         </div>
         <div>
           <Label>Temporary password</Label>
-          <Input name="password" type="text" placeholder="min 8 chars" required />
+          <Input name="password" type="text" placeholder="min 8 characters" required />
         </div>
       </div>
       <div>
-        <Label>Access / permissions</Label>
-        <PermissionChecklist namePrefix="perm_" defaults={[]} />
+        <Label>Assign to company</Label>
+        <Select name="companyId" required defaultValue="">
+          <option value="" disabled>Select a company…</option>
+          {companies.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </Select>
+      </div>
+      <div>
+        <Label>Access / permissions for that company</Label>
+        <PermissionChecklist namePrefix="perm_" />
       </div>
       <Button type="submit" disabled={pending}>
-        {pending ? "Adding…" : "Add manager"}
+        {pending ? "Adding…" : "Add member"}
       </Button>
     </form>
   );
 }
 
-export function ManagerPermissionsEditor({
+/** Editable permission chips for one user's membership in one company. */
+export function MembershipEditor({
   userId,
+  companyId,
+  companyName,
   current,
 }: {
   userId: string;
+  companyId: string;
+  companyName: string;
   current: string[];
 }) {
   const [checked, setChecked] = useState<Set<string>>(new Set(current));
@@ -103,14 +113,24 @@ export function ManagerPermissionsEditor({
   const toggle = (key: string) =>
     setChecked((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
+      next.has(key) ? next.delete(key) : next.add(key);
       setSaved(false);
       return next;
     });
 
   return (
-    <div className="space-y-2">
+    <div className="rounded-lg border border-slate-200 p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="text-sm font-medium text-slate-800">{companyName}</span>
+        <button
+          type="button"
+          onClick={() => start(() => void revokeMembership(userId, companyId))}
+          disabled={pending}
+          className="text-xs text-red-600 hover:underline"
+        >
+          Revoke access
+        </button>
+      </div>
       <div className="flex flex-wrap gap-1.5">
         {PERMISSIONS.map((p) => {
           const on = checked.has(p.key);
@@ -128,13 +148,13 @@ export function ManagerPermissionsEditor({
           );
         })}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="mt-2 flex items-center gap-2">
         <Button
           size="sm"
           disabled={pending}
           onClick={() =>
             start(async () => {
-              await updateManagerPermissions(userId, Array.from(checked));
+              await grantMembership(userId, companyId, Array.from(checked));
               setSaved(true);
             })
           }
@@ -147,7 +167,50 @@ export function ManagerPermissionsEditor({
   );
 }
 
-export function ManagerRowActions({
+/** Grant a user access to a company they don't have yet. */
+export function GrantCompanyForm({
+  userId,
+  companies,
+}: {
+  userId: string;
+  companies: Company[];
+}) {
+  const [companyId, setCompanyId] = useState("");
+  const [pending, start] = useTransition();
+
+  if (companies.length === 0) {
+    return <p className="text-xs text-slate-400">Has access to all companies.</p>;
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <Select
+        value={companyId}
+        onChange={(e) => setCompanyId(e.target.value)}
+        className="h-9 py-1.5 text-sm"
+      >
+        <option value="">Grant access to…</option>
+        {companies.map((c) => (
+          <option key={c.id} value={c.id}>{c.name}</option>
+        ))}
+      </Select>
+      <Button
+        size="sm"
+        disabled={pending || !companyId}
+        onClick={() =>
+          start(async () => {
+            await grantMembership(userId, companyId, []);
+            setCompanyId("");
+          })
+        }
+      >
+        Add
+      </Button>
+    </div>
+  );
+}
+
+export function MemberRowActions({
   userId,
   isActive,
 }: {
@@ -157,20 +220,10 @@ export function ManagerRowActions({
   const [pending, start] = useTransition();
   return (
     <div className="flex gap-1">
-      <Button
-        size="sm"
-        variant={isActive ? "outline" : "secondary"}
-        disabled={pending}
-        onClick={() => start(() => void setManagerActive(userId, !isActive))}
-      >
+      <Button size="sm" variant={isActive ? "outline" : "secondary"} disabled={pending} onClick={() => start(() => void setMemberActive(userId, !isActive))}>
         {isActive ? "Disable" : "Enable"}
       </Button>
-      <Button
-        size="sm"
-        variant="danger"
-        disabled={pending}
-        onClick={() => start(() => void removeManager(userId))}
-      >
+      <Button size="sm" variant="danger" disabled={pending} onClick={() => start(() => void removeMember(userId))}>
         Remove
       </Button>
     </div>
