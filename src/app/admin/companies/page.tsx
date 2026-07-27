@@ -5,6 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge, humanize, statusTone } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
 import { CompanyStatusActions } from "./company-actions";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 import type { CompanyStatus } from "@prisma/client";
 
 export default async function AdminCompaniesPage({
@@ -33,6 +35,13 @@ export default async function AdminCompaniesPage({
       <PageHeader
         title="Companies"
         description="Approve, suspend, and manage registered carriers."
+        actions={
+          <Link href="/admin/companies/new">
+            <Button>
+              <Plus className="h-4 w-4" /> New company
+            </Button>
+          </Link>
+        }
       />
 
       <div className="mb-4 flex gap-2">
