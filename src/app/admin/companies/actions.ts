@@ -6,7 +6,39 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/auth/guards";
 import { hashPassword } from "@/lib/auth/password";
+import {
+  lookupByDot,
+  lookupByMc,
+  CarrierLookupError,
+  type CarrierInfo,
+} from "@/lib/integrations/carrier-lookup";
 import type { CompanyStatus } from "@prisma/client";
+
+export type CarrierLookupResult =
+  | { ok: true; info: CarrierInfo }
+  | { ok: false; error: string };
+
+/** Look up carrier details from FMCSA by USDOT or MC number. */
+export async function lookupCarrier(
+  kind: "dot" | "mc",
+  value: string,
+): Promise<CarrierLookupResult> {
+  await requireRole("ADMIN");
+  const trimmed = value.trim();
+  if (!trimmed) return { ok: false, error: "Enter a number first" };
+  try {
+    const info =
+      kind === "dot" ? await lookupByDot(trimmed) : await lookupByMc(trimmed);
+    if (!info) return { ok: false, error: "No carrier found for that number" };
+    return { ok: true, info };
+  } catch (e) {
+    const msg =
+      e instanceof CarrierLookupError
+        ? e.message
+        : "Lookup failed — please try again";
+    return { ok: false, error: msg };
+  }
+}
 
 const createCompanySchema = z.object({
   companyName: z.string().min(2, "Company name is required"),

@@ -29,6 +29,8 @@ services:
       DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
       AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+      # FMCSA QCMobile API key for USDOT/MC carrier lookup (optional)
+      FMCSA_WEBKEY: ${FMCSA_WEBKEY}
     # Bind to localhost only — the host nginx proxies to it.
     ports:
       - "127.0.0.1:8090:3000"
