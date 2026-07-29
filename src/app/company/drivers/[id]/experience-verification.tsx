@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { recordVerification } from "./verification-actions";
+import { useActionState, useState, useTransition } from "react";
+import { recordVerification, sendVerificationEmail } from "./verification-actions";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Badge, humanize, statusTone } from "@/components/ui/badge";
@@ -48,6 +48,20 @@ export function ExperienceVerification({
     FormData
   >(recordVerification, undefined);
 
+  const [sending, startSend] = useTransition();
+  const [sendMsg, setSendMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const sendSystemEmail = () =>
+    startSend(async () => {
+      setSendMsg(null);
+      const res = await sendVerificationEmail(entry.id);
+      setSendMsg(
+        res.ok
+          ? { ok: true, text: `Request sent to ${entry.email}` }
+          : { ok: false, text: res.error ?? "Failed to send" },
+      );
+    });
+
   const mailtoHref = () => {
     const subject = `Employment Verification — ${driverName}`;
     const body = `Hello,
@@ -84,20 +98,29 @@ ${companyName}`;
             <div className="mt-1 text-xs text-slate-500">Reason for leaving: {entry.reasonForLeaving}</div>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Badge tone={statusTone(entry.status)}>{humanize(entry.status)}</Badge>
           {entry.email && (
-            <a href={mailtoHref()}>
-              <Button size="sm" variant="outline">
-                <Mail className="h-4 w-4" /> Email request
+            <>
+              <Button size="sm" onClick={sendSystemEmail} disabled={sending}>
+                <Mail className="h-4 w-4" /> {sending ? "Sending…" : "Send request"}
               </Button>
-            </a>
+              <a href={mailtoHref()} title="Open in your mail app instead">
+                <Button size="sm" variant="ghost">Mail app</Button>
+              </a>
+            </>
           )}
           <Button size="sm" variant="secondary" onClick={() => setOpen((v) => !v)}>
             {open ? "Close" : "Verify"}
           </Button>
         </div>
       </div>
+
+      {sendMsg && (
+        <div className={`mt-2 rounded-lg px-3 py-2 text-xs ${sendMsg.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+          {sendMsg.text}
+        </div>
+      )}
 
       {/* Existing verification summary */}
       {entry.status !== "NOT_REQUESTED" && !open && (

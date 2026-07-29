@@ -31,6 +31,9 @@ services:
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
       # FMCSA QCMobile API key for USDOT/MC carrier lookup (optional)
       FMCSA_WEBKEY: ${FMCSA_WEBKEY}
+      # Transactional email (Resend HTTP API) for verification requests (optional)
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      EMAIL_FROM: ${EMAIL_FROM}
     # Bind to localhost only — the host nginx proxies to it.
     ports:
       - "127.0.0.1:8090:3000"
