@@ -25,6 +25,7 @@ export default async function DriverExperiencePage() {
     endDate: toDateInput(r.endDate),
     isCurrent: r.isCurrent,
     reasonForLeaving: r.reasonForLeaving ?? "",
+    verificationStatus: r.verificationStatus,
   }));
 
   return (

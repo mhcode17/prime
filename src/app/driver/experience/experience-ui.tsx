@@ -10,6 +10,7 @@ import {
 import type { CarrierSummary } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
+import { Badge, humanize, statusTone } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 
 export interface ExpEntry {
@@ -24,6 +25,7 @@ export interface ExpEntry {
   endDate: string; // yyyy-mm-dd or ""
   isCurrent: boolean;
   reasonForLeaving: string;
+  verificationStatus: string;
 }
 
 // Autocomplete input for the employer name, backed by the FMCSA name search.
@@ -246,7 +248,14 @@ export function ExperienceItem({ entry }: { entry: ExpEntry }) {
   return (
     <div className="flex items-start justify-between rounded-xl border border-slate-200 bg-white p-4">
       <div>
-        <div className="font-medium text-slate-900">{entry.employerName}</div>
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-slate-900">{entry.employerName}</span>
+          {entry.verificationStatus && entry.verificationStatus !== "NOT_REQUESTED" && (
+            <Badge tone={statusTone(entry.verificationStatus)}>
+              {humanize(entry.verificationStatus)}
+            </Badge>
+          )}
+        </div>
         <div className="text-sm text-slate-500">
           {entry.position && `${entry.position} · `}
           {period}

@@ -82,6 +82,12 @@ export function statusTone(status: string): Tone {
     NORMAL: "blue",
     HIGH: "orange",
     URGENT: "red",
+    // Employment verification
+    NOT_REQUESTED: "gray",
+    // REQUESTED already yellow
+    VERIFIED: "green",
+    UNABLE_TO_VERIFY: "red",
+    NO_RESPONSE: "orange",
     // Equipment
     AVAILABLE: "green",
     ASSIGNED: "blue",

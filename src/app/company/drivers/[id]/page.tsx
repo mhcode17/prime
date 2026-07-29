@@ -6,9 +6,10 @@ import { PageHeader } from "@/components/shell/page-header";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge, humanize, statusTone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatDate, toDateInput, initials } from "@/lib/utils";
+import { formatDate, formatDateTime, toDateInput, initials } from "@/lib/utils";
 import { DriverStatusActions } from "./status-actions";
 import { DriverInfoForm } from "./info-form";
+import { ExperienceVerification, type VerifEntry } from "./experience-verification";
 import {
   FileSignature,
   ShieldCheck,
@@ -25,7 +26,7 @@ export default async function DriverDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { companyId } = await getCurrentCompany("drivers");
+  const { companyId, company } = await getCurrentCompany("drivers");
 
   const driver = await prisma.driver.findFirst({
     where: { id, companyId },
@@ -169,7 +170,7 @@ export default async function DriverDetailPage({
 
       <Card className="mt-6">
         <CardHeader>
-          <CardTitle>Work experience ({driver.experiences.length})</CardTitle>
+          <CardTitle>Employment verification ({driver.experiences.length})</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {driver.experiences.length === 0 ? (
@@ -177,28 +178,36 @@ export default async function DriverDetailPage({
               The driver hasn&apos;t added any employment history yet.
             </p>
           ) : (
-            <ul className="divide-y divide-slate-100">
-              {driver.experiences.map((e) => (
-                <li key={e.id} className="px-5 py-3">
-                  <div className="font-medium text-slate-900">{e.employerName}</div>
-                  <div className="text-sm text-slate-500">
-                    {e.position && `${e.position} · `}
-                    {formatDate(e.startDate)} — {e.isCurrent ? "Present" : formatDate(e.endDate)}
-                    {(e.city || e.state) && ` · ${[e.city, e.state].filter(Boolean).join(", ")}`}
-                  </div>
-                  {(e.phone || e.email) && (
-                    <div className="text-xs text-slate-400">
-                      {[e.phone, e.email].filter(Boolean).join(" · ")}
-                    </div>
-                  )}
-                  {e.reasonForLeaving && (
-                    <div className="text-xs text-slate-400">
-                      Reason for leaving: {e.reasonForLeaving}
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
+            <div className="divide-y divide-slate-100">
+              {driver.experiences.map((e) => {
+                const entry: VerifEntry = {
+                  id: e.id,
+                  employerName: e.employerName,
+                  position: e.position ?? "",
+                  city: e.city ?? "",
+                  state: e.state ?? "",
+                  phone: e.phone ?? "",
+                  email: e.email ?? "",
+                  period: `${formatDate(e.startDate)} — ${e.isCurrent ? "Present" : formatDate(e.endDate)}`,
+                  reasonForLeaving: e.reasonForLeaving ?? "",
+                  status: e.verificationStatus,
+                  method: e.verificationMethod ?? "",
+                  notes: e.verificationNotes ?? "",
+                  datesConfirmed: e.datesConfirmed,
+                  eligibleForRehire: e.eligibleForRehire,
+                  verifiedByName: e.verifiedByName ?? "",
+                  verifiedAt: e.verifiedAt ? formatDateTime(e.verifiedAt) : "",
+                };
+                return (
+                  <ExperienceVerification
+                    key={e.id}
+                    entry={entry}
+                    driverName={`${driver.user.firstName} ${driver.user.lastName}`}
+                    companyName={company.name}
+                  />
+                );
+              })}
+            </div>
           )}
         </CardContent>
       </Card>

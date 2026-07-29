@@ -192,7 +192,16 @@ model Driver {
   @@index([status])
 }
 
+enum VerificationStatus {
+  NOT_REQUESTED
+  REQUESTED // request sent to the prior employer, awaiting response
+  VERIFIED
+  UNABLE_TO_VERIFY
+  NO_RESPONSE
+}
+
 // Employment history entry a driver adds to their profile (DOT work history).
+// The employer uses it for Employment Verification.
 model DriverExperience {
   id       String @id @default(cuid())
   driverId String
@@ -208,6 +217,15 @@ model DriverExperience {
   endDate          DateTime? // null when it's the current job
   isCurrent        Boolean   @default(false)
   reasonForLeaving String?
+
+  // Employment verification (filled by the hiring company)
+  verificationStatus VerificationStatus @default(NOT_REQUESTED)
+  verificationMethod String? // email / phone / fax
+  verificationNotes  String? @db.Text
+  verifiedByName     String? // company user who recorded the result
+  verifiedAt         DateTime?
+  datesConfirmed     Boolean?
+  eligibleForRehire  Boolean?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
