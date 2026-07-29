@@ -40,6 +40,9 @@ export default async function DriverDetailPage({
         where: { active: true },
         include: { truck: true, trailer: true },
       },
+      experiences: {
+        orderBy: [{ isCurrent: "desc" }, { startDate: "desc" }],
+      },
     },
   });
   if (!driver) notFound();
@@ -161,6 +164,37 @@ export default async function DriverDetailPage({
             emergencyContactName={driver.emergencyContactName}
             emergencyContactPhone={driver.emergencyContactPhone}
           />
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Work experience ({driver.experiences.length})</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {driver.experiences.length === 0 ? (
+            <p className="px-5 py-6 text-sm text-slate-500">
+              The driver hasn&apos;t added any employment history yet.
+            </p>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {driver.experiences.map((e) => (
+                <li key={e.id} className="px-5 py-3">
+                  <div className="font-medium text-slate-900">{e.employerName}</div>
+                  <div className="text-sm text-slate-500">
+                    {e.position && `${e.position} · `}
+                    {formatDate(e.startDate)} — {e.isCurrent ? "Present" : formatDate(e.endDate)}
+                    {(e.city || e.state) && ` · ${[e.city, e.state].filter(Boolean).join(", ")}`}
+                  </div>
+                  {e.reasonForLeaving && (
+                    <div className="text-xs text-slate-400">
+                      Reason for leaving: {e.reasonForLeaving}
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
         </CardContent>
       </Card>
     </div>

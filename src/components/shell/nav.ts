@@ -17,6 +17,7 @@ import {
   UserCog,
   Settings,
   LifeBuoy,
+  Briefcase,
 } from "lucide-react";
 import type { PermissionKey } from "@/lib/permissions";
 
@@ -60,6 +61,7 @@ export const companyNav: NavItem[] = [
 export const driverNav: NavItem[] = [
   { label: "Dashboard", href: "/driver", icon: LayoutDashboard },
   { label: "Documents to Sign", href: "/driver/documents", icon: FileSignature },
+  { label: "Experience", href: "/driver/experience", icon: Briefcase },
   { label: "Screening & Tests", href: "/driver/screening", icon: ShieldCheck },
   { label: "Orientation", href: "/driver/appointments", icon: CalendarClock },
   { label: "My Equipment", href: "/driver/equipment", icon: Truck },

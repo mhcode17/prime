@@ -186,9 +186,32 @@ model Driver {
   clearinghouseQueries ClearinghouseQuery[]
   appointments        Appointment[]
   truckAssignments    EquipmentAssignment[]
+  experiences         DriverExperience[]
 
   @@index([companyId])
   @@index([status])
+}
+
+// Employment history entry a driver adds to their profile (DOT work history).
+model DriverExperience {
+  id       String @id @default(cuid())
+  driverId String
+  driver   Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  employerName     String
+  position         String?
+  city             String?
+  state            String?
+  phone            String?
+  startDate        DateTime
+  endDate          DateTime? // null when it's the current job
+  isCurrent        Boolean   @default(false)
+  reasonForLeaving String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([driverId])
 }
 
 // ─────────────────────────────────────────────────────────────
