@@ -20,6 +20,7 @@ export default async function DriverExperiencePage() {
     city: r.city ?? "",
     state: r.state ?? "",
     phone: r.phone ?? "",
+    email: r.email ?? "",
     startDate: toDateInput(r.startDate),
     endDate: toDateInput(r.endDate),
     isCurrent: r.isCurrent,

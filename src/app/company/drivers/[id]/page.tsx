@@ -186,6 +186,11 @@ export default async function DriverDetailPage({
                     {formatDate(e.startDate)} — {e.isCurrent ? "Present" : formatDate(e.endDate)}
                     {(e.city || e.state) && ` · ${[e.city, e.state].filter(Boolean).join(", ")}`}
                   </div>
+                  {(e.phone || e.email) && (
+                    <div className="text-xs text-slate-400">
+                      {[e.phone, e.email].filter(Boolean).join(" · ")}
+                    </div>
+                  )}
                   {e.reasonForLeaving && (
                     <div className="text-xs text-slate-400">
                       Reason for leaving: {e.reasonForLeaving}

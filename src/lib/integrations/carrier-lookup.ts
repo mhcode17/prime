@@ -69,6 +69,49 @@ export async function lookupByDot(dot: string): Promise<CarrierInfo | null> {
   return carrier ? normalize(carrier) : null;
 }
 
+export interface CarrierSummary {
+  legalName: string;
+  dotNumber: string | null;
+  city: string | null;
+  state: string | null;
+  phone: string | null;
+}
+
+/** Search carriers by (partial) name — for autocomplete. Returns up to `limit`. */
+export async function lookupByName(
+  name: string,
+  limit = 8,
+): Promise<CarrierSummary[]> {
+  const q = name.trim();
+  if (q.length < 2) return [];
+  const data = (await getJson(
+    `${BASE}/name/${encodeURIComponent(q)}?webKey=${webKey()}`,
+  )) as { content?: unknown } | null;
+  const content = data?.content;
+  if (!Array.isArray(content)) return [];
+  const seen = new Set<string>();
+  const out: CarrierSummary[] = [];
+  for (const item of content) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const c: any = (item as any)?.carrier ?? item;
+    if (!c) continue;
+    const legalName = c.legalName ?? c.dbaName;
+    if (!legalName) continue;
+    const key = `${legalName}|${c.dotNumber ?? ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      legalName,
+      dotNumber: c.dotNumber != null ? String(c.dotNumber) : null,
+      city: c.phyCity ?? null,
+      state: c.phyState ?? null,
+      phone: c.telephone ?? null,
+    });
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
 /** Look up a carrier by MC / docket number. Returns null if not found. */
 export async function lookupByMc(mc: string): Promise<CarrierInfo | null> {
   const digits = mc.replace(/\D/g, "");

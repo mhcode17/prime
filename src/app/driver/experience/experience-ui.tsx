@@ -1,9 +1,16 @@
 "use client";
 
-import { useActionState, useEffect, useState, useTransition } from "react";
-import { addExperience, updateExperience, deleteExperience } from "./actions";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
+import {
+  addExperience,
+  updateExperience,
+  deleteExperience,
+  searchCarriers,
+} from "./actions";
+import type { CarrierSummary } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
+import { Loader2 } from "lucide-react";
 
 export interface ExpEntry {
   id: string;
@@ -12,37 +19,142 @@ export interface ExpEntry {
   city: string;
   state: string;
   phone: string;
+  email: string;
   startDate: string; // yyyy-mm-dd
   endDate: string; // yyyy-mm-dd or ""
   isCurrent: boolean;
   reasonForLeaving: string;
 }
 
+// Autocomplete input for the employer name, backed by the FMCSA name search.
+function CarrierAutocomplete({
+  value,
+  onChange,
+  onPick,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onPick: (c: CarrierSummary) => void;
+}) {
+  const [results, setResults] = useState<CarrierSummary[]>([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const dirty = useRef(false);
+
+  useEffect(() => {
+    if (!dirty.current) return;
+    const q = value.trim();
+    if (q.length < 2) {
+      setResults([]);
+      setOpen(false);
+      return;
+    }
+    setLoading(true);
+    const t = setTimeout(async () => {
+      const res = await searchCarriers(q);
+      setLoading(false);
+      if (res.ok) {
+        setResults(res.results);
+        setOpen(res.results.length > 0);
+      }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [value]);
+
+  return (
+    <div className="relative">
+      <Input
+        name="employerName"
+        value={value}
+        autoComplete="off"
+        required
+        onChange={(e) => {
+          dirty.current = true;
+          onChange(e.target.value);
+        }}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onFocus={() => results.length > 0 && setOpen(true)}
+      />
+      {loading && (
+        <Loader2 className="absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
+      )}
+      {open && results.length > 0 && (
+        <ul className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+          {results.map((c, i) => (
+            <li key={i}>
+              <button
+                type="button"
+                onMouseDown={(ev) => {
+                  ev.preventDefault();
+                  dirty.current = false;
+                  onPick(c);
+                  setOpen(false);
+                }}
+                className="block w-full px-3 py-2 text-left hover:bg-slate-50"
+              >
+                <div className="text-sm font-medium text-slate-800">{c.legalName}</div>
+                <div className="text-xs text-slate-400">
+                  {[c.city, c.state].filter(Boolean).join(", ")}
+                  {c.dotNumber ? ` · USDOT ${c.dotNumber}` : ""}
+                </div>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function Fields({ e }: { e?: ExpEntry }) {
+  const [employerName, setEmployerName] = useState(e?.employerName ?? "");
+  const [position, setPosition] = useState(e?.position ?? "");
+  const [city, setCity] = useState(e?.city ?? "");
+  const [stateVal, setStateVal] = useState(e?.state ?? "");
+  const [phone, setPhone] = useState(e?.phone ?? "");
+  const [email, setEmail] = useState(e?.email ?? "");
   const [current, setCurrent] = useState(e?.isCurrent ?? false);
+
   return (
     <div className="space-y-3">
+      <div>
+        <Label>Employer / company</Label>
+        <CarrierAutocomplete
+          value={employerName}
+          onChange={setEmployerName}
+          onPick={(c) => {
+            setEmployerName(c.legalName);
+            if (c.city) setCity(c.city);
+            if (c.state) setStateVal(c.state);
+            if (c.phone) setPhone(c.phone);
+          }}
+        />
+        <p className="mt-1 text-xs text-slate-400">
+          Start typing — suggestions from the FMCSA carrier database appear below.
+        </p>
+      </div>
+
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <Label>Employer / company</Label>
-          <Input name="employerName" defaultValue={e?.employerName} required />
+          <Label>Position (optional)</Label>
+          <Input name="position" value={position} onChange={(e) => setPosition(e.target.value)} placeholder="e.g. CDL-A Driver" />
         </div>
         <div>
-          <Label>Position (optional)</Label>
-          <Input name="position" defaultValue={e?.position} placeholder="e.g. CDL-A Driver" />
+          <Label>Company email (optional)</Label>
+          <Input name="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="hr@carrier.com" />
         </div>
         <div>
           <Label>City (optional)</Label>
-          <Input name="city" defaultValue={e?.city} />
+          <Input name="city" value={city} onChange={(e) => setCity(e.target.value)} />
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div>
             <Label>State (optional)</Label>
-            <Input name="state" defaultValue={e?.state} maxLength={2} />
+            <Input name="state" value={stateVal} onChange={(e) => setStateVal(e.target.value)} maxLength={2} />
           </div>
           <div>
             <Label>Phone (optional)</Label>
-            <Input name="phone" defaultValue={e?.phone} />
+            <Input name="phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
           </div>
         </div>
         <div>
@@ -51,14 +163,10 @@ function Fields({ e }: { e?: ExpEntry }) {
         </div>
         <div>
           <Label>To</Label>
-          <Input
-            name="endDate"
-            type="date"
-            defaultValue={e?.endDate}
-            disabled={current}
-          />
+          <Input name="endDate" type="date" defaultValue={e?.endDate} disabled={current} />
         </div>
       </div>
+
       <label className="flex items-center gap-2 text-sm text-slate-600">
         <input
           type="checkbox"
@@ -107,7 +215,6 @@ export function ExperienceItem({ entry }: { entry: ExpEntry }) {
     FormData
   >(updateExperience, undefined);
 
-  // Collapse after a successful save.
   useEffect(() => {
     if (state?.ok) setEditing(false);
   }, [state?.ok]);
@@ -144,12 +251,11 @@ export function ExperienceItem({ entry }: { entry: ExpEntry }) {
           {entry.position && `${entry.position} · `}
           {period}
         </div>
-        {(entry.city || entry.state) && (
-          <div className="text-xs text-slate-400">
-            {[entry.city, entry.state].filter(Boolean).join(", ")}
-            {entry.phone && ` · ${entry.phone}`}
-          </div>
-        )}
+        <div className="text-xs text-slate-400">
+          {[entry.city, entry.state].filter(Boolean).join(", ")}
+          {entry.phone && ` · ${entry.phone}`}
+          {entry.email && ` · ${entry.email}`}
+        </div>
         {entry.reasonForLeaving && (
           <div className="mt-1 text-xs text-slate-500">Reason for leaving: {entry.reasonForLeaving}</div>
         )}

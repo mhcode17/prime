@@ -203,6 +203,7 @@ model DriverExperience {
   city             String?
   state            String?
   phone            String?
+  email            String?
   startDate        DateTime
   endDate          DateTime? // null when it's the current job
   isCurrent        Boolean   @default(false)
