@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { ShieldCheck, ChevronDown } from "lucide-react";
+import { ShieldCheck, ChevronDown, Download } from "lucide-react";
 
 export function ConsentDisclosure({
+  token,
   driverName,
   employerName,
   companyName,
@@ -12,6 +13,7 @@ export function ConsentDisclosure({
   signature,
   signedAt,
 }: {
+  token: string;
   driverName: string;
   employerName: string;
   companyName: string;
@@ -79,6 +81,13 @@ export function ConsentDisclosure({
           {signedAt && (
             <div className="mt-2 text-[11px] text-slate-400">Signed {signedAt}</div>
           )}
+
+          <a
+            href={`/api/verify/${token}/consent-pdf`}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+          >
+            <Download className="h-4 w-4" /> Download authorization (PDF)
+          </a>
         </div>
       )}
     </div>

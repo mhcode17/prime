@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Badge, humanize, statusTone } from "@/components/ui/badge";
-import { Mail, Link2 } from "lucide-react";
+import { Mail, Link2, FileDown } from "lucide-react";
 
 export interface VerifEntry {
   id: string;
@@ -119,6 +119,11 @@ export function ExperienceVerification({ entry }: { entry: VerifEntry }) {
               <Button size="sm" variant="outline" onClick={copyLink} disabled={copying}>
                 <Link2 className="h-4 w-4" /> {copying ? "…" : "Copy link"}
               </Button>
+              <a href={`/api/experience/${entry.id}/consent-pdf`}>
+                <Button size="sm" variant="ghost">
+                  <FileDown className="h-4 w-4" /> Consent PDF
+                </Button>
+              </a>
             </>
           )}
           <Button size="sm" variant="secondary" onClick={() => setOpen((v) => !v)}>

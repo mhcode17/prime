@@ -103,6 +103,7 @@ export default async function VerifyPage({
           what the applicant stated (company, dates), the signature and date. */}
       {exp.consentSignature ? (
         <ConsentDisclosure
+          token={token}
           driverName={driverName}
           employerName={exp.employerName}
           companyName={exp.driver.company.name}

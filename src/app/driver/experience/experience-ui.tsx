@@ -11,7 +11,7 @@ import type { CarrierSummary } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { Badge, humanize, statusTone } from "@/components/ui/badge";
-import { Loader2, ShieldCheck } from "lucide-react";
+import { Loader2, ShieldCheck, Download } from "lucide-react";
 import { signConsent } from "./actions";
 import { SignaturePad, type SignaturePadHandle } from "@/app/driver/documents/[id]/signature-pad";
 
@@ -300,8 +300,16 @@ export function ExperienceItem({
 
       {/* Consent bar */}
       {entry.consentSigned ? (
-        <div className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700">
-          <ShieldCheck className="h-4 w-4" /> Consent signed
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700">
+            <ShieldCheck className="h-4 w-4" /> Consent signed
+          </span>
+          <a
+            href={`/api/experience/${entry.id}/consent-pdf`}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-600 hover:underline"
+          >
+            <Download className="h-3.5 w-3.5" /> Download PDF
+          </a>
         </div>
       ) : (
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-amber-50 px-3 py-2">
