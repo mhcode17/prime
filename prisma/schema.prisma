@@ -101,6 +101,9 @@ model Company {
   state         String?
   zip           String?
   phone         String?
+  faxNumber     String?
+  safetyAttention String? // "Attention" line for safety records requests
+  safetyEmail   String? // where prior employers send safety history
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -247,6 +250,34 @@ model DriverExperience {
   drugAlcoholViolation  Boolean? // DOT drug/alcohol program violation during employment
   dotRecordableAccident Boolean? // DOT-recordable accident during employment
   dotAccidentDetails    String?  @db.Text // required when accident = Yes
+
+  // ── FMCSA Safety Performance History form ──────────────────
+  // Part 2 — Accident history
+  employedByUs         Boolean?
+  didDriveVehicle      Boolean?
+  vehicleTypes         String[]  @default([]) // straight_truck, tractor_semitrailer, bus, cargo_tank, doubles_triples, other
+  vehicleTypeOther     String?
+  reasonForLeavingType String? // DISCHARGED | RESIGNATION | LAYOFF | MILITARY | OTHER
+  noSafetyHistory      Boolean?
+  accidents            Json? // [{ date, location, injuries, fatalities, hazmat }]
+  otherAccidents       String? @db.Text
+  accidentRemarks      String? @db.Text
+
+  // Part 3 — Drug & alcohol information
+  noDrugAlcoholInfo Boolean?
+  daAlcoholTest     Boolean? // alcohol test >= 0.04
+  daPositiveTest    Boolean? // verified positive drug test
+  daRefusals        Boolean? // refusals to test
+  daOtherViolations Boolean? // other Part 382/40 violations
+  daSapSubsequent   Boolean? // subsequent violations after SAP return-to-duty
+
+  // Part 4 — Characteristics ratings (EXCELLENT | GOOD | FAIR | POOR)
+  ratings Json? // { disposition, initiative, safetyHabits, drivingSkill, attitude, loyalty }
+
+  // Part 5 — Company request attempts
+  attempts           Json? // [{ method, by, date }]
+  infoReceivedMethod String?
+  infoReceivedAt     DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

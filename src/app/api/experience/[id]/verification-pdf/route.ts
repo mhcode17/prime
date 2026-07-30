@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { generateVerificationPdf } from "@/lib/pdf/verification";
+import type { Accident } from "@/lib/sph";
 
 function fmtDay(d: Date | null): string {
   if (!d) return "Present";
@@ -42,13 +43,29 @@ export async function GET(
     consentSignature: exp.consentSignature,
     consentSignedAt: exp.consentSignedAt,
     consentIp: exp.consentIp,
+
+    employedByUs: exp.employedByUs,
     confirmedStartDate: exp.confirmedStartDate,
     confirmedEndDate: exp.confirmedEndDate,
+    didDriveVehicle: exp.didDriveVehicle,
+    vehicleTypes: exp.vehicleTypes ?? [],
+    vehicleTypeOther: exp.vehicleTypeOther,
+    reasonForLeavingType: exp.reasonForLeavingType,
     eligibleForRehire: exp.eligibleForRehire,
-    drugAlcoholViolation: exp.drugAlcoholViolation,
-    dotRecordableAccident: exp.dotRecordableAccident,
-    dotAccidentDetails: exp.dotAccidentDetails,
-    comments: exp.verificationNotes,
+    noSafetyHistory: exp.noSafetyHistory,
+    accidents: (exp.accidents as unknown as Accident[] | null) ?? [],
+    otherAccidents: exp.otherAccidents,
+    accidentRemarks: exp.accidentRemarks,
+
+    noDrugAlcoholInfo: exp.noDrugAlcoholInfo,
+    daAlcoholTest: exp.daAlcoholTest,
+    daPositiveTest: exp.daPositiveTest,
+    daRefusals: exp.daRefusals,
+    daOtherViolations: exp.daOtherViolations,
+    daSapSubsequent: exp.daSapSubsequent,
+
+    ratings: (exp.ratings as unknown as Record<string, string> | null) ?? {},
+
     responderName: exp.responderName,
     responderTitle: exp.responderTitle,
     responderSignature: exp.responderSignature,

@@ -99,11 +99,15 @@ ${company.name}`;
     };
   }
 
+  const attempts = Array.isArray(exp.attempts) ? (exp.attempts as unknown[]) : [];
+  attempts.push({ method: "email", by: session.name, date: new Date().toISOString() });
+
   await prisma.driverExperience.update({
     where: { id: exp.id },
     data: {
       verificationStatus: exp.verificationStatus === "NOT_REQUESTED" ? "REQUESTED" : exp.verificationStatus,
       verificationMethod: "email",
+      attempts: attempts as object[],
       verificationNotes: appendNote(exp.verificationNotes, `Request emailed to ${exp.email} on ${new Date().toLocaleString("en-US")}.`),
     },
   });
