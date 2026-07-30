@@ -26,7 +26,7 @@ export default async function DriverDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { companyId, company } = await getCurrentCompany("drivers");
+  const { companyId } = await getCurrentCompany("drivers");
 
   const driver = await prisma.driver.findFirst({
     where: { id, companyId },
@@ -197,15 +197,14 @@ export default async function DriverDetailPage({
                   eligibleForRehire: e.eligibleForRehire,
                   verifiedByName: e.verifiedByName ?? "",
                   verifiedAt: e.verifiedAt ? formatDateTime(e.verifiedAt) : "",
+                  responderName: e.responderName ?? "",
+                  responderTitle: e.responderTitle ?? "",
+                  respondedAt: e.respondedAt ? formatDateTime(e.respondedAt) : "",
+                  drugAlcoholViolation: e.drugAlcoholViolation,
+                  dotRecordableAccident: e.dotRecordableAccident,
+                  signature: e.responderSignature ?? "",
                 };
-                return (
-                  <ExperienceVerification
-                    key={e.id}
-                    entry={entry}
-                    driverName={`${driver.user.firstName} ${driver.user.lastName}`}
-                    companyName={company.name}
-                  />
-                );
+                return <ExperienceVerification key={e.id} entry={entry} />;
               })}
             </div>
           )}

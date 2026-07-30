@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { getCurrentCompany } from "@/lib/current";
@@ -9,6 +10,36 @@ import type { VerificationStatus } from "@prisma/client";
 function fmtDate(d: Date | null): string {
   if (!d) return "Present";
   return d.toLocaleDateString("en-US", { year: "numeric", month: "short" });
+}
+
+function baseUrl(): string {
+  return (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
+}
+
+/** Ensure the experience has a verification token; returns the full public URL. */
+async function ensureLink(exp: { id: string; verificationToken: string | null }): Promise<string> {
+  let token = exp.verificationToken;
+  if (!token) {
+    token = randomUUID();
+    await prisma.driverExperience.update({
+      where: { id: exp.id },
+      data: { verificationToken: token },
+    });
+  }
+  return `${baseUrl()}/verify/${token}`;
+}
+
+/** Return (creating if needed) the shareable verification link for a job entry. */
+export async function ensureVerificationLink(
+  experienceId: string,
+): Promise<{ ok?: boolean; url?: string; error?: string }> {
+  const { companyId } = await getCurrentCompany("drivers");
+  const exp = await prisma.driverExperience.findFirst({
+    where: { id: experienceId, driver: { companyId } },
+    select: { id: true, verificationToken: true },
+  });
+  if (!exp) return { error: "Experience not found" };
+  return { ok: true, url: await ensureLink(exp) };
 }
 
 /** Send the employment-verification request email to the prior employer. */
@@ -26,26 +57,32 @@ export async function sendVerificationEmail(
 
   const driverName = `${exp.driver.user.firstName} ${exp.driver.user.lastName}`;
   const period = `${fmtDate(exp.startDate)} — ${exp.isCurrent ? "Present" : fmtDate(exp.endDate)}`;
+  const link = await ensureLink(exp);
 
   const text = `Hello,
 
 ${company.name} is verifying the prior employment of ${driverName}, who reports working at ${exp.employerName} (${period}).
 
-Please confirm:
-1. Employment dates${exp.position ? ` and position (${exp.position})` : ""}
-2. Eligibility for rehire
-3. Reason for leaving
-4. (DOT) Any drug & alcohol testing program violations, refusals, or DOT-recordable accidents during employment
+Please complete the secure online verification form (confirm dates, position, rehire eligibility, DOT drug & alcohol history and accidents, then sign):
 
-You can simply reply to this email with your response.
+${link}
+
+It only takes a minute. If you prefer, you can also reply to this email.
 
 Thank you,
 ${company.name}`;
 
-  const html = text
-    .split("\n")
-    .map((l) => (l.trim() ? `<p style="margin:0 0 10px">${l}</p>` : "<br/>"))
-    .join("");
+  const html = `
+    <div style="font-family:Arial,sans-serif;font-size:14px;color:#0f172a;line-height:1.5">
+      <p>Hello,</p>
+      <p><b>${company.name}</b> is verifying the prior employment of <b>${driverName}</b>, who reports working at <b>${exp.employerName}</b> (${period}).</p>
+      <p>Please complete the secure online verification form — confirm dates, position, rehire eligibility, DOT drug &amp; alcohol history and accidents, then sign:</p>
+      <p style="margin:20px 0">
+        <a href="${link}" style="background:#2563eb;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;display:inline-block;font-weight:bold">Complete verification →</a>
+      </p>
+      <p style="color:#64748b;font-size:12px">Or open this link: <a href="${link}">${link}</a></p>
+      <p>Thank you,<br/>${company.name}</p>
+    </div>`;
 
   try {
     await sendEmail({

@@ -1,11 +1,15 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import { recordVerification, sendVerificationEmail } from "./verification-actions";
+import {
+  recordVerification,
+  sendVerificationEmail,
+  ensureVerificationLink,
+} from "./verification-actions";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Badge, humanize, statusTone } from "@/components/ui/badge";
-import { Mail } from "lucide-react";
+import { Mail, Link2 } from "lucide-react";
 
 export interface VerifEntry {
   id: string;
@@ -24,6 +28,12 @@ export interface VerifEntry {
   eligibleForRehire: boolean | null;
   verifiedByName: string;
   verifiedAt: string;
+  responderName: string;
+  responderTitle: string;
+  respondedAt: string;
+  drugAlcoholViolation: boolean | null;
+  dotRecordableAccident: boolean | null;
+  signature: string;
 }
 
 function triLabel(v: boolean | null) {
@@ -33,15 +43,7 @@ function triValue(v: boolean | null) {
   return v === true ? "yes" : v === false ? "no" : "";
 }
 
-export function ExperienceVerification({
-  entry,
-  driverName,
-  companyName,
-}: {
-  entry: VerifEntry;
-  driverName: string;
-  companyName: string;
-}) {
+export function ExperienceVerification({ entry }: { entry: VerifEntry }) {
   const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState<
     { error?: string; ok?: boolean } | undefined,
@@ -50,6 +52,7 @@ export function ExperienceVerification({
 
   const [sending, startSend] = useTransition();
   const [sendMsg, setSendMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [copying, startCopy] = useTransition();
 
   const sendSystemEmail = () =>
     startSend(async () => {
@@ -62,22 +65,21 @@ export function ExperienceVerification({
       );
     });
 
-  const mailtoHref = () => {
-    const subject = `Employment Verification — ${driverName}`;
-    const body = `Hello,
-
-${companyName} is verifying the prior employment of ${driverName}, who reports working at ${entry.employerName} (${entry.period}).
-
-Could you please confirm:
-1. Employment dates${entry.position ? ` and position (${entry.position})` : ""}
-2. Eligibility for rehire
-3. Reason for leaving
-4. (DOT) Any drug & alcohol testing program violations, refusals, or DOT-recordable accidents during employment
-
-Thank you,
-${companyName}`;
-    return `mailto:${encodeURIComponent(entry.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  };
+  const copyLink = () =>
+    startCopy(async () => {
+      setSendMsg(null);
+      const res = await ensureVerificationLink(entry.id);
+      if (res.ok && res.url) {
+        try {
+          await navigator.clipboard.writeText(res.url);
+          setSendMsg({ ok: true, text: "Verification link copied to clipboard" });
+        } catch {
+          setSendMsg({ ok: true, text: res.url });
+        }
+      } else {
+        setSendMsg({ ok: false, text: res.error ?? "Failed" });
+      }
+    });
 
   return (
     <div className="px-5 py-4">
@@ -101,17 +103,15 @@ ${companyName}`;
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone={statusTone(entry.status)}>{humanize(entry.status)}</Badge>
           {entry.email && (
-            <>
-              <Button size="sm" onClick={sendSystemEmail} disabled={sending}>
-                <Mail className="h-4 w-4" /> {sending ? "Sending…" : "Send request"}
-              </Button>
-              <a href={mailtoHref()} title="Open in your mail app instead">
-                <Button size="sm" variant="ghost">Mail app</Button>
-              </a>
-            </>
+            <Button size="sm" onClick={sendSystemEmail} disabled={sending}>
+              <Mail className="h-4 w-4" /> {sending ? "Sending…" : "Send request"}
+            </Button>
           )}
+          <Button size="sm" variant="outline" onClick={copyLink} disabled={copying}>
+            <Link2 className="h-4 w-4" /> {copying ? "…" : "Copy link"}
+          </Button>
           <Button size="sm" variant="secondary" onClick={() => setOpen((v) => !v)}>
-            {open ? "Close" : "Verify"}
+            {open ? "Close" : "Record"}
           </Button>
         </div>
       </div>
@@ -125,12 +125,29 @@ ${companyName}`;
       {/* Existing verification summary */}
       {entry.status !== "NOT_REQUESTED" && !open && (
         <div className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
-          Dates confirmed: <b>{triLabel(entry.datesConfirmed)}</b> · Eligible for rehire:{" "}
-          <b>{triLabel(entry.eligibleForRehire)}</b>
-          {entry.method && ` · via ${entry.method}`}
-          {entry.verifiedByName && ` · by ${entry.verifiedByName}`}
-          {entry.verifiedAt && ` · ${entry.verifiedAt}`}
-          {entry.notes && <div className="mt-1 text-slate-500">{entry.notes}</div>}
+          <div>
+            Dates confirmed: <b>{triLabel(entry.datesConfirmed)}</b> · Eligible for rehire:{" "}
+            <b>{triLabel(entry.eligibleForRehire)}</b>
+            {entry.respondedAt && (
+              <>
+                {" "}· Drug/alcohol violation: <b>{triLabel(entry.drugAlcoholViolation)}</b> ·
+                DOT accident: <b>{triLabel(entry.dotRecordableAccident)}</b>
+              </>
+            )}
+          </div>
+          <div className="text-slate-400">
+            {entry.method && `via ${entry.method}`}
+            {entry.respondedAt
+              ? ` · responded by ${entry.responderName}${entry.responderTitle ? ` (${entry.responderTitle})` : ""} · ${entry.respondedAt}`
+              : entry.verifiedByName
+                ? ` · by ${entry.verifiedByName}${entry.verifiedAt ? ` · ${entry.verifiedAt}` : ""}`
+                : ""}
+          </div>
+          {entry.notes && <div className="mt-1 text-slate-500">“{entry.notes}”</div>}
+          {entry.signature?.startsWith("data:image") && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={entry.signature} alt="signature" className="mt-2 max-h-16 rounded border border-slate-200 bg-white" />
+          )}
         </div>
       )}
 

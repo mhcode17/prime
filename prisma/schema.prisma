@@ -220,17 +220,30 @@ model DriverExperience {
 
   // Employment verification (filled by the hiring company)
   verificationStatus VerificationStatus @default(NOT_REQUESTED)
-  verificationMethod String? // email / phone / fax
+  verificationMethod String? // email / phone / fax / online
   verificationNotes  String? @db.Text
   verifiedByName     String? // company user who recorded the result
   verifiedAt         DateTime?
   datesConfirmed     Boolean?
   eligibleForRehire  Boolean?
 
+  // Online verification via tokenized link (prior employer self-serves).
+  // Token is a UUID (collision-free) — indexed for lookup, uniqueness enforced
+  // at generation time to avoid a data-loss-flagged unique constraint on push.
+  verificationToken     String?
+  responderName         String?
+  responderTitle        String?
+  responderSignature    String?   @db.Text // drawn signature (data URL)
+  respondedAt           DateTime?
+  responderIp           String?
+  drugAlcoholViolation  Boolean? // DOT drug/alcohol program violation during employment
+  dotRecordableAccident Boolean? // DOT-recordable accident during employment
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([driverId])
+  @@index([verificationToken])
 }
 
 // ─────────────────────────────────────────────────────────────
