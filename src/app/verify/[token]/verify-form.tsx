@@ -4,6 +4,7 @@ import { useActionState, useRef, useState } from "react";
 import { submitVerification } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { SignaturePad, type SignaturePadHandle } from "@/app/driver/documents/[id]/signature-pad";
 import { CheckCircle2 } from "lucide-react";
 
@@ -24,6 +25,10 @@ export function VerifyForm({
   const [accident, setAccident] = useState("");
 
   const handle = (formData: FormData) => {
+    if (!String(formData.get("confirmedStartDate") ?? "")) {
+      setErr("Please enter the employment start date.");
+      return;
+    }
     const sig = padRef.current?.toDataURL();
     if (!sig) {
       setErr("Please sign at the bottom before submitting.");
@@ -61,26 +66,28 @@ export function VerifyForm({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <span className="mb-1 block text-xs text-slate-400">From</span>
-            <Input name="confirmedStartDate" type="date" required />
+            <DatePicker name="confirmedStartDate" />
           </div>
           <div>
             <span className="mb-1 block text-xs text-slate-400">To (leave blank if still employed)</span>
-            <Input name="confirmedEndDate" type="date" />
+            <DatePicker name="confirmedEndDate" />
           </div>
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <Label>Eligible for rehire?</Label>
+        <div className="flex flex-col">
+          <Label className="min-h-[2.75rem]">Eligible for rehire?</Label>
           <Select name="eligibleForRehire" defaultValue="">
             <option value="">Unknown</option>
             <option value="yes">Yes</option>
             <option value="no">No</option>
           </Select>
         </div>
-        <div>
-          <Label>Any drug &amp; alcohol program violation or refusal? (DOT)</Label>
+        <div className="flex flex-col">
+          <Label className="min-h-[2.75rem]">
+            Any drug &amp; alcohol program violation or refusal? (DOT)
+          </Label>
           <Select name="drugAlcoholViolation" defaultValue="">
             <option value="">Unknown / N/A</option>
             <option value="no">No</option>
