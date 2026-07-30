@@ -23,6 +23,7 @@ export async function GET(
   }
 
   const bytes = await generateConsentPdf({
+    envelopeId: exp.id,
     applicantName: `${exp.driver.user.firstName} ${exp.driver.user.lastName}`,
     employerName: exp.employerName,
     companyName: exp.driver.company.name,

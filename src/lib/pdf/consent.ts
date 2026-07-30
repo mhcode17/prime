@@ -1,7 +1,9 @@
 import "server-only";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { appendCertificate } from "./certificate";
 
 export interface ConsentPdfData {
+  envelopeId: string;
   applicantName: string;
   employerName: string;
   companyName: string;
@@ -124,6 +126,20 @@ export async function generateConsentPdf(d: ConsentPdfData): Promise<Uint8Array>
     "This authorization was completed electronically and is legally binding.",
     { x: margin, y: margin, size: 8, font, color: gray },
   );
+
+  // Certificate of Completion (audit trail + hash)
+  await appendCertificate(pdf, font, bold, {
+    envelopeId: d.envelopeId,
+    documentTitle: `Authorization to Release Information — ${d.applicantName} @ ${d.employerName}`,
+    signers: [
+      {
+        label: "Applicant",
+        name: d.applicantName,
+        at: fmt(d.signedAt),
+        ip: d.signerIp ?? "unknown",
+      },
+    ],
+  });
 
   return pdf.save();
 }

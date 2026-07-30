@@ -1,7 +1,9 @@
 import "server-only";
 import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont } from "pdf-lib";
+import { appendCertificate } from "./certificate";
 
 export interface VerificationPdfData {
+  envelopeId: string;
   applicantName: string;
   employerName: string;
   companyName: string;
@@ -167,12 +169,25 @@ export async function generateVerificationPdf(d: VerificationPdfData): Promise<U
   field("Responded by", `${d.responderName ?? "—"}${d.responderTitle ? ` (${d.responderTitle})` : ""}`);
   await signatureBox(d.responderSignature, `Prior employer signature — responded ${fmt(d.respondedAt)} · IP ${d.responderIp ?? "unknown"}`);
 
-  // Footer note
-  ensure(20);
-  page.drawText(
-    "This verification was completed electronically. Both signatures were captured with timestamps and IP addresses.",
-    { x: margin, y: margin - 10 < y ? margin : y, size: 8, font, color: gray },
-  );
+  // Certificate of Completion (audit trail + hash)
+  await appendCertificate(pdf, font, bold, {
+    envelopeId: d.envelopeId,
+    documentTitle: `Employment Verification — ${d.applicantName} @ ${d.employerName}`,
+    signers: [
+      {
+        label: "Applicant (consent)",
+        name: d.applicantName,
+        at: fmt(d.consentSignedAt),
+        ip: d.consentIp ?? "unknown",
+      },
+      {
+        label: "Prior employer (response)",
+        name: `${d.responderName ?? "—"}${d.responderTitle ? ` (${d.responderTitle})` : ""}`,
+        at: fmt(d.respondedAt),
+        ip: d.responderIp ?? "unknown",
+      },
+    ],
+  });
 
   return pdf.save();
 }
