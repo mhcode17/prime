@@ -203,6 +203,11 @@ export default async function DriverDetailPage({
                   drugAlcoholViolation: e.drugAlcoholViolation,
                   dotRecordableAccident: e.dotRecordableAccident,
                   signature: e.responderSignature ?? "",
+                  consentSigned: !!e.consentSignedAt,
+                  confirmedDates: e.confirmedStartDate
+                    ? `${formatDate(e.confirmedStartDate)} — ${e.confirmedEndDate ? formatDate(e.confirmedEndDate) : "Present"}`
+                    : "",
+                  dotAccidentDetails: e.dotAccidentDetails ?? "",
                 };
                 return <ExperienceVerification key={e.id} entry={entry} />;
               })}

@@ -98,6 +98,40 @@ export default async function VerifyPage({
         </p>
       </div>
 
+      {/* Driver's signed consent — the employer sees authorization first */}
+      {exp.consentSignature ? (
+        <div className="mb-6 rounded-xl border border-green-200 bg-green-50/50 p-4">
+          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-green-800">
+            <ShieldCheck className="h-4 w-4" /> Signed authorization from {driverName}
+          </div>
+          <p className="text-xs leading-relaxed text-slate-600">
+            {driverName} authorizes <b>{exp.employerName}</b> to release to{" "}
+            <b>{exp.driver.company.name}</b> all information regarding their
+            employment (dates, performance, reason for leaving, rehire
+            eligibility, DOT drug &amp; alcohol history, and DOT-recordable
+            accidents) for employment verification.
+          </p>
+          {exp.consentSignature.startsWith("data:image") && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={exp.consentSignature}
+              alt="applicant signature"
+              className="mt-2 max-h-16 rounded border border-slate-200 bg-white"
+            />
+          )}
+          {exp.consentSignedAt && (
+            <div className="mt-1 text-[11px] text-slate-400">
+              Signed {formatDateTime(exp.consentSignedAt)}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
+          Note: the applicant&apos;s signed authorization is not yet on file. You
+          may still respond, but confirm you have the applicant&apos;s consent.
+        </div>
+      )}
+
       <VerifyForm token={token} employerName={exp.employerName} />
     </Shell>
   );

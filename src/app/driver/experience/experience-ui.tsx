@@ -11,7 +11,9 @@ import type { CarrierSummary } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { Badge, humanize, statusTone } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { Loader2, ShieldCheck } from "lucide-react";
+import { signConsent } from "./actions";
+import { SignaturePad, type SignaturePadHandle } from "@/app/driver/documents/[id]/signature-pad";
 
 export interface ExpEntry {
   id: string;
@@ -26,6 +28,7 @@ export interface ExpEntry {
   isCurrent: boolean;
   reasonForLeaving: string;
   verificationStatus: string;
+  consentSigned: boolean;
 }
 
 // Autocomplete input for the employer name, backed by the FMCSA name search.
@@ -209,9 +212,18 @@ export function AddExperienceForm() {
   );
 }
 
-export function ExperienceItem({ entry }: { entry: ExpEntry }) {
+export function ExperienceItem({
+  entry,
+  driverName,
+  companyName,
+}: {
+  entry: ExpEntry;
+  driverName: string;
+  companyName: string;
+}) {
   const [editing, setEditing] = useState(false);
   const [deleting, startDelete] = useTransition();
+  const [consentOpen, setConsentOpen] = useState(false);
   const [state, action, pending] = useActionState<
     { error?: string; ok?: boolean } | undefined,
     FormData
@@ -246,42 +258,127 @@ export function ExperienceItem({ entry }: { entry: ExpEntry }) {
   }
 
   return (
-    <div className="flex items-start justify-between rounded-xl border border-slate-200 bg-white p-4">
-      <div>
-        <div className="flex items-center gap-2">
-          <span className="font-medium text-slate-900">{entry.employerName}</span>
-          {entry.verificationStatus && entry.verificationStatus !== "NOT_REQUESTED" && (
-            <Badge tone={statusTone(entry.verificationStatus)}>
-              {humanize(entry.verificationStatus)}
-            </Badge>
+    <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-slate-900">{entry.employerName}</span>
+            {entry.verificationStatus && entry.verificationStatus !== "NOT_REQUESTED" && (
+              <Badge tone={statusTone(entry.verificationStatus)}>
+                {humanize(entry.verificationStatus)}
+              </Badge>
+            )}
+          </div>
+          <div className="text-sm text-slate-500">
+            {entry.position && `${entry.position} · `}
+            {period}
+          </div>
+          <div className="text-xs text-slate-400">
+            {[entry.city, entry.state].filter(Boolean).join(", ")}
+            {entry.phone && ` · ${entry.phone}`}
+            {entry.email && ` · ${entry.email}`}
+          </div>
+          {entry.reasonForLeaving && (
+            <div className="mt-1 text-xs text-slate-500">Reason for leaving: {entry.reasonForLeaving}</div>
           )}
         </div>
-        <div className="text-sm text-slate-500">
-          {entry.position && `${entry.position} · `}
-          {period}
+        <div className="flex shrink-0 gap-1">
+          <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
+            Edit
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-red-600"
+            disabled={deleting}
+            onClick={() => startDelete(() => void deleteExperience(entry.id))}
+          >
+            Delete
+          </Button>
         </div>
-        <div className="text-xs text-slate-400">
-          {[entry.city, entry.state].filter(Boolean).join(", ")}
-          {entry.phone && ` · ${entry.phone}`}
-          {entry.email && ` · ${entry.email}`}
-        </div>
-        {entry.reasonForLeaving && (
-          <div className="mt-1 text-xs text-slate-500">Reason for leaving: {entry.reasonForLeaving}</div>
-        )}
       </div>
-      <div className="flex shrink-0 gap-1">
-        <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
-          Edit
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="text-red-600"
-          disabled={deleting}
-          onClick={() => startDelete(() => void deleteExperience(entry.id))}
-        >
-          Delete
-        </Button>
+
+      {/* Consent bar */}
+      {entry.consentSigned ? (
+        <div className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-green-50 px-3 py-1.5 text-xs font-medium text-green-700">
+          <ShieldCheck className="h-4 w-4" /> Consent signed
+        </div>
+      ) : (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-amber-50 px-3 py-2">
+          <span className="text-xs text-amber-800">
+            ⚠ Consent required — sign to authorize this employer to release your records.
+          </span>
+          <Button size="sm" onClick={() => setConsentOpen(true)}>
+            Sign consent form
+          </Button>
+        </div>
+      )}
+
+      {consentOpen && (
+        <ConsentModal
+          experienceId={entry.id}
+          employerName={entry.employerName}
+          driverName={driverName}
+          companyName={companyName}
+          onClose={() => setConsentOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ConsentModal({
+  experienceId,
+  employerName,
+  driverName,
+  companyName,
+  onClose,
+}: {
+  experienceId: string;
+  employerName: string;
+  driverName: string;
+  companyName: string;
+  onClose: () => void;
+}) {
+  const padRef = useRef<SignaturePadHandle>(null);
+  const [pending, start] = useTransition();
+  const [err, setErr] = useState<string | null>(null);
+
+  const submit = () => {
+    const sig = padRef.current?.toDataURL();
+    if (!sig) {
+      setErr("Please sign before submitting.");
+      return;
+    }
+    setErr(null);
+    start(async () => {
+      const res = await signConsent(experienceId, sig);
+      if (res.error) setErr(res.error);
+      else onClose();
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+        <h3 className="mb-2 text-lg font-semibold text-slate-900">Consent to release records</h3>
+        {err && <div className="mb-2 rounded bg-red-50 px-2 py-1 text-xs text-red-700">{err}</div>}
+        <div className="mb-4 max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm leading-relaxed text-slate-700">
+          I, <b>{driverName}</b>, authorize <b>{employerName}</b> to release to{" "}
+          <b>{companyName}</b> all information regarding my employment, including
+          job performance, dates of employment, reason for leaving, eligibility
+          for rehire, DOT drug &amp; alcohol testing history, and any
+          DOT-recordable accidents, for the purpose of employment verification. I
+          release all parties from any liability for providing this information.
+        </div>
+        <Label>Signature</Label>
+        <SignaturePad ref={padRef} />
+        <div className="mt-4 flex justify-end gap-2">
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={submit} disabled={pending}>
+            {pending ? "Signing…" : "Sign consent"}
+          </Button>
+        </div>
       </div>
     </div>
   );

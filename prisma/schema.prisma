@@ -227,6 +227,12 @@ model DriverExperience {
   datesConfirmed     Boolean?
   eligibleForRehire  Boolean?
 
+  // Driver's consent authorizing this prior employer to release info to the
+  // hiring company (signed by the driver right after adding the experience).
+  consentSignature String?   @db.Text
+  consentSignedAt  DateTime?
+  consentIp        String?
+
   // Online verification via tokenized link (prior employer self-serves).
   // Token is a UUID (collision-free) — indexed for lookup, uniqueness enforced
   // at generation time to avoid a data-loss-flagged unique constraint on push.
@@ -236,8 +242,11 @@ model DriverExperience {
   responderSignature    String?   @db.Text // drawn signature (data URL)
   respondedAt           DateTime?
   responderIp           String?
+  confirmedStartDate    DateTime? // dates the prior employer actually confirms
+  confirmedEndDate      DateTime?
   drugAlcoholViolation  Boolean? // DOT drug/alcohol program violation during employment
   dotRecordableAccident Boolean? // DOT-recordable accident during employment
+  dotAccidentDetails    String?  @db.Text // required when accident = Yes
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

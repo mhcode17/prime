@@ -21,6 +21,7 @@ export function VerifyForm({
   const padRef = useRef<SignaturePadHandle>(null);
 
   const [err, setErr] = useState<string | null>(null);
+  const [accident, setAccident] = useState("");
 
   const handle = (formData: FormData) => {
     const sig = padRef.current?.toDataURL();
@@ -55,15 +56,21 @@ export function VerifyForm({
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <Label>Were the employment dates accurate?</Label>
-          <Select name="datesConfirmed" defaultValue="">
-            <option value="">Select…</option>
-            <option value="yes">Yes</option>
-            <option value="no">No</option>
-          </Select>
+      <div>
+        <Label>Confirmed employment dates (as you have on record)</Label>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <span className="mb-1 block text-xs text-slate-400">From</span>
+            <Input name="confirmedStartDate" type="date" required />
+          </div>
+          <div>
+            <span className="mb-1 block text-xs text-slate-400">To (leave blank if still employed)</span>
+            <Input name="confirmedEndDate" type="date" />
+          </div>
         </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <Label>Eligible for rehire?</Label>
           <Select name="eligibleForRehire" defaultValue="">
@@ -80,14 +87,30 @@ export function VerifyForm({
             <option value="yes">Yes</option>
           </Select>
         </div>
-        <div>
-          <Label>Any DOT-recordable accident during employment?</Label>
-          <Select name="dotRecordableAccident" defaultValue="">
-            <option value="">Unknown / N/A</option>
-            <option value="no">No</option>
-            <option value="yes">Yes</option>
-          </Select>
-        </div>
+      </div>
+
+      <div>
+        <Label>Any DOT-recordable accident during employment?</Label>
+        <Select
+          name="dotRecordableAccident"
+          value={accident}
+          onChange={(e) => setAccident(e.target.value)}
+        >
+          <option value="">Unknown / N/A</option>
+          <option value="no">No</option>
+          <option value="yes">Yes</option>
+        </Select>
+        {accident === "yes" && (
+          <div className="mt-2">
+            <Label>Accident details (required)</Label>
+            <Textarea
+              name="dotAccidentDetails"
+              rows={3}
+              required
+              placeholder="Date, location, nature of the accident, fatalities/injuries, HazMat, tow-away, etc."
+            />
+          </div>
+        )}
       </div>
 
       <div>

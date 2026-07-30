@@ -34,6 +34,9 @@ export interface VerifEntry {
   drugAlcoholViolation: boolean | null;
   dotRecordableAccident: boolean | null;
   signature: string;
+  consentSigned: boolean;
+  confirmedDates: string;
+  dotAccidentDetails: string;
 }
 
 function triLabel(v: boolean | null) {
@@ -102,14 +105,22 @@ export function ExperienceVerification({ entry }: { entry: VerifEntry }) {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone={statusTone(entry.status)}>{humanize(entry.status)}</Badge>
-          {entry.email && (
-            <Button size="sm" onClick={sendSystemEmail} disabled={sending}>
-              <Mail className="h-4 w-4" /> {sending ? "Sending…" : "Send request"}
-            </Button>
+          {!entry.consentSigned ? (
+            <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
+              Waiting for driver consent
+            </span>
+          ) : (
+            <>
+              {entry.email && (
+                <Button size="sm" onClick={sendSystemEmail} disabled={sending}>
+                  <Mail className="h-4 w-4" /> {sending ? "Sending…" : "Send request"}
+                </Button>
+              )}
+              <Button size="sm" variant="outline" onClick={copyLink} disabled={copying}>
+                <Link2 className="h-4 w-4" /> {copying ? "…" : "Copy link"}
+              </Button>
+            </>
           )}
-          <Button size="sm" variant="outline" onClick={copyLink} disabled={copying}>
-            <Link2 className="h-4 w-4" /> {copying ? "…" : "Copy link"}
-          </Button>
           <Button size="sm" variant="secondary" onClick={() => setOpen((v) => !v)}>
             {open ? "Close" : "Record"}
           </Button>
@@ -126,8 +137,10 @@ export function ExperienceVerification({ entry }: { entry: VerifEntry }) {
       {entry.status !== "NOT_REQUESTED" && !open && (
         <div className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
           <div>
-            Dates confirmed: <b>{triLabel(entry.datesConfirmed)}</b> · Eligible for rehire:{" "}
-            <b>{triLabel(entry.eligibleForRehire)}</b>
+            {entry.confirmedDates ? (
+              <>Confirmed dates: <b>{entry.confirmedDates}</b> · </>
+            ) : null}
+            Eligible for rehire: <b>{triLabel(entry.eligibleForRehire)}</b>
             {entry.respondedAt && (
               <>
                 {" "}· Drug/alcohol violation: <b>{triLabel(entry.drugAlcoholViolation)}</b> ·
@@ -135,6 +148,9 @@ export function ExperienceVerification({ entry }: { entry: VerifEntry }) {
               </>
             )}
           </div>
+          {entry.dotAccidentDetails && (
+            <div className="mt-1 text-slate-500">Accident: {entry.dotAccidentDetails}</div>
+          )}
           <div className="text-slate-400">
             {entry.method && `via ${entry.method}`}
             {entry.respondedAt

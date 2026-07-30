@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
 import { getCurrentDriver } from "@/lib/current";
 import {
@@ -110,4 +111,32 @@ export async function deleteExperience(id: string) {
   if (!existing) throw new Error("Entry not found");
   await prisma.driverExperience.delete({ where: { id } });
   revalidatePath("/driver/experience");
+}
+
+/** Driver signs the consent authorizing this prior employer to release info. */
+export async function signConsent(
+  experienceId: string,
+  signaturePng: string,
+): Promise<{ ok?: boolean; error?: string }> {
+  const { driver } = await getCurrentDriver();
+  const exp = await prisma.driverExperience.findFirst({
+    where: { id: experienceId, driverId: driver.id },
+  });
+  if (!exp) return { error: "Entry not found" };
+  if (!signaturePng || !signaturePng.startsWith("data:image")) {
+    return { error: "Please sign before submitting" };
+  }
+
+  const hdrs = await headers();
+  const ip =
+    hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    hdrs.get("x-real-ip") ||
+    "unknown";
+
+  await prisma.driverExperience.update({
+    where: { id: exp.id },
+    data: { consentSignature: signaturePng, consentSignedAt: new Date(), consentIp: ip },
+  });
+  revalidatePath("/driver/experience");
+  return { ok: true };
 }

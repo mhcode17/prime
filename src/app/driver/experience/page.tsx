@@ -26,7 +26,11 @@ export default async function DriverExperiencePage() {
     isCurrent: r.isCurrent,
     reasonForLeaving: r.reasonForLeaving ?? "",
     verificationStatus: r.verificationStatus,
+    consentSigned: !!r.consentSignedAt,
   }));
+
+  const driverName = `${driver.user.firstName} ${driver.user.lastName}`;
+  const companyName = driver.company.name;
 
   return (
     <div>
@@ -43,7 +47,14 @@ export default async function DriverExperiencePage() {
               description="Use the form to add the carriers you've worked for."
             />
           ) : (
-            entries.map((e) => <ExperienceItem key={e.id} entry={e} />)
+            entries.map((e) => (
+              <ExperienceItem
+                key={e.id}
+                entry={e}
+                driverName={driverName}
+                companyName={companyName}
+              />
+            ))
           )}
         </div>
 

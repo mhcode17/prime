@@ -38,15 +38,26 @@ export async function submitVerification(
     hdrs.get("x-real-ip") ||
     "unknown";
 
+  const startStr = String(formData.get("confirmedStartDate") ?? "");
+  const endStr = String(formData.get("confirmedEndDate") ?? "");
+  const accident = tri(formData.get("dotRecordableAccident"));
+  const accidentDetails = String(formData.get("dotAccidentDetails") ?? "").trim();
+  if (accident === true && !accidentDetails) {
+    return { error: "Please describe the DOT-recordable accident." };
+  }
+
   await prisma.driverExperience.update({
     where: { id: exp.id },
     data: {
       verificationStatus: "VERIFIED",
       verificationMethod: "online",
-      datesConfirmed: tri(formData.get("datesConfirmed")),
+      confirmedStartDate: startStr ? new Date(startStr) : null,
+      confirmedEndDate: endStr ? new Date(endStr) : null,
+      datesConfirmed: startStr ? true : null,
       eligibleForRehire: tri(formData.get("eligibleForRehire")),
       drugAlcoholViolation: tri(formData.get("drugAlcoholViolation")),
-      dotRecordableAccident: tri(formData.get("dotRecordableAccident")),
+      dotRecordableAccident: accident,
+      dotAccidentDetails: accident === true ? accidentDetails : null,
       verificationNotes: String(formData.get("comments") ?? "").trim() || null,
       responderName,
       responderTitle: responderTitle || null,
