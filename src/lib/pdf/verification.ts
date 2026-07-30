@@ -198,7 +198,7 @@ export async function generateVerificationPdf(d: VerificationPdfData): Promise<U
   );
 
   // ── Section 2: employer response ────────────────────────────
-  y -= 2;
+  y -= 18;
   section(2, "Prior Employer's Response");
   label("Confirmed employment dates");
   value(
