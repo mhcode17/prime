@@ -169,6 +169,14 @@ export function ExperienceVerification({ entry }: { entry: VerifEntry }) {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={entry.signature} alt="signature" className="mt-2 max-h-16 rounded border border-slate-200 bg-white" />
           )}
+          {entry.respondedAt && (
+            <a
+              href={`/api/experience/${entry.id}/verification-pdf`}
+              className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-brand-300 bg-white px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-50"
+            >
+              <FileDown className="h-4 w-4" /> Download verification (PDF)
+            </a>
+          )}
         </div>
       )}
 
