@@ -71,10 +71,8 @@ export async function generateVerificationPdf(d: VerificationPdfData): Promise<U
     y = H - margin;
   };
   const ensure = (space: number) => {
-    if (y - space < 60) newPage();
+    if (y - space < 52) newPage();
   };
-
-  // wrap helper
   const wrapLines = (text: string, size: number, maxW: number, f: PDFFont = font): string[] => {
     const out: string[] = [];
     for (const para of text.split("\n")) {
@@ -92,63 +90,61 @@ export async function generateVerificationPdf(d: VerificationPdfData): Promise<U
   };
 
   // ── Header band ─────────────────────────────────────────────
-  page.drawRectangle({ x: 0, y: H - 96, width: W, height: 96, color: NAVY });
-  page.drawRectangle({ x: 0, y: H - 99, width: W, height: 3, color: ACCENT });
-  page.drawText("Employment Verification", { x: margin, y: H - 50, size: 22, font: bold, color: WHITE });
-  page.drawText("Completed verification record  ·  DOT / FMCSA", { x: margin, y: H - 72, size: 11, font, color: rgb(0.72, 0.78, 0.88) });
-  // status chip (right)
+  page.drawRectangle({ x: 0, y: H - 82, width: W, height: 82, color: NAVY });
+  page.drawRectangle({ x: 0, y: H - 85, width: W, height: 3, color: ACCENT });
+  page.drawText("Employment Verification", { x: margin, y: H - 44, size: 21, font: bold, color: WHITE });
+  page.drawText("Completed verification record  ·  DOT / FMCSA", { x: margin, y: H - 64, size: 10.5, font, color: rgb(0.72, 0.78, 0.88) });
   const chip = "COMPLETED";
   const chipW = bold.widthOfTextAtSize(chip, 9) + 20;
-  page.drawRectangle({ x: W - margin - chipW, y: H - 58, width: chipW, height: 20, color: GREEN_BG });
-  page.drawText(chip, { x: W - margin - chipW + 10, y: H - 52, size: 9, font: bold, color: GREEN });
+  page.drawRectangle({ x: W - margin - chipW, y: H - 50, width: chipW, height: 19, color: GREEN_BG });
+  page.drawText(chip, { x: W - margin - chipW + 10, y: H - 44, size: 9, font: bold, color: GREEN });
 
-  y = H - 96 - 26;
+  y = H - 82 - 16;
 
   // ── Applicant summary card ──────────────────────────────────
-  const kvAt = (x: number, top: number, label: string, value: string) => {
-    page.drawText(label.toUpperCase(), { x, y: top, size: 7.5, font: bold, color: GRAY });
-    page.drawText(value || "—", { x, y: top - 14, size: 12, font, color: DARK });
+  const kvAt = (x: number, top: number, lab: string, val: string) => {
+    page.drawText(lab.toUpperCase(), { x, y: top, size: 7.5, font: bold, color: GRAY });
+    page.drawText(val || "—", { x, y: top - 13, size: 11.5, font, color: DARK });
   };
   const rows: [string, string, string, string][] = [
     ["Applicant", d.applicantName, "Position", d.position || "—"],
     ["Prior employer", d.employerName, "Dates stated by applicant", d.datesStated],
     ["Releasing to (hiring company)", d.companyName, "", ""],
   ];
-  const cardH = rows.length * 38 + 12;
+  const cardH = rows.length * 32 + 8;
   page.drawRectangle({ x: margin, y: y - cardH, width: contentW, height: cardH, color: LIGHT, borderColor: BORDER, borderWidth: 1 });
-  let ry = y - 24;
+  let ry = y - 20;
   for (const [l1, v1, l2, v2] of rows) {
     kvAt(margin + 16, ry, l1, v1);
     if (l2) kvAt(margin + 268, ry, l2, v2);
-    ry -= 38;
+    ry -= 32;
   }
-  y = y - cardH - 26;
+  y = y - cardH - 16;
 
-  // ── Section band ────────────────────────────────────────────
+  // ── helpers ─────────────────────────────────────────────────
   const section = (num: number, title: string) => {
-    ensure(40);
-    page.drawRectangle({ x: margin, y: y - 6, width: contentW, height: 26, color: rgb(0.93, 0.95, 1) });
-    page.drawRectangle({ x: margin, y: y - 6, width: 26, height: 26, color: ACCENT });
-    page.drawText(String(num), { x: margin + 9, y: y + 2, size: 13, font: bold, color: WHITE });
-    page.drawText(title, { x: margin + 38, y: y + 2, size: 12, font: bold, color: ACCENT });
-    y -= 40;
+    ensure(34);
+    page.drawRectangle({ x: margin, y: y - 6, width: contentW, height: 25, color: rgb(0.93, 0.95, 1) });
+    page.drawRectangle({ x: margin, y: y - 6, width: 25, height: 25, color: ACCENT });
+    page.drawText(String(num), { x: margin + 9, y: y + 1, size: 12, font: bold, color: WHITE });
+    page.drawText(title, { x: margin + 37, y: y + 1, size: 12, font: bold, color: ACCENT });
+    y -= 31;
   };
-
   const label = (t: string) => {
-    ensure(20);
+    ensure(16);
     page.drawText(t.toUpperCase(), { x: margin, y, size: 7.5, font: bold, color: GRAY });
-    y -= 15;
+    y -= 13;
   };
-  const value = (t: string, size = 12) => {
-    ensure(size + 8);
+  const value = (t: string, size = 11.5) => {
+    ensure(size + 6);
     page.drawText(t || "—", { x: margin, y, size, font, color: DARK });
-    y -= size + 12;
+    y -= size + 7;
   };
-  const paragraph = (t: string, size = 11) => {
-    for (const ln of wrapLines(t, size, contentW - 24)) {
-      ensure(size + 5);
+  const paragraph = (t: string, size = 10) => {
+    for (const ln of wrapLines(t, size, contentW - 8)) {
+      ensure(size + 3);
       page.drawText(ln, { x: margin, y, size, font, color: DARK });
-      y -= size + 4;
+      y -= size + 3;
     }
   };
   const pill = (x: number, top: number, text: string, tone: "green" | "red" | "gray") => {
@@ -159,21 +155,21 @@ export async function generateVerificationPdf(d: VerificationPdfData): Promise<U
     page.drawText(text, { x: x + 9, y: top, size: 9, font: bold, color: fg });
   };
   const answer = (lbl: string, val: boolean | null, goodWhen: boolean) => {
-    ensure(24);
+    ensure(20);
     page.drawText(lbl, { x: margin, y, size: 10.5, font, color: DARK });
     const text = val === true ? "Yes" : val === false ? "No" : "Unknown";
     const tone = val === null ? "gray" : val === goodWhen ? "green" : "red";
     pill(margin + 340, y - 1, text, tone);
-    y -= 24;
+    y -= 20;
   };
+  // Draw a signature box at current y (caller pre-ensures space).
   const signature = async (dataUrl: string | null, caption: string) => {
-    ensure(96);
-    const bw = 240, bh = 64, by = y - bh;
+    const bw = 230, bh = 48, by = y - bh;
     page.drawRectangle({ x: margin, y: by, width: bw, height: bh, color: rgb(0.995, 0.995, 1), borderColor: BORDER, borderWidth: 1 });
     if (dataUrl && dataUrl.startsWith("data:image")) {
       try {
         const png = await pdf.embedPng(dataUrlToBytes(dataUrl));
-        const scale = Math.min((bw - 20) / png.width, (bh - 12) / png.height);
+        const scale = Math.min((bw - 18) / png.width, (bh - 10) / png.height);
         page.drawImage(png, {
           x: margin + (bw - png.width * scale) / 2,
           y: by + (bh - png.height * scale) / 2,
@@ -181,9 +177,9 @@ export async function generateVerificationPdf(d: VerificationPdfData): Promise<U
         });
       } catch { /* ignore */ }
     }
-    y = by - 14;
-    page.drawText(caption, { x: margin, y, size: 9, font, color: GRAY });
-    y -= 18;
+    y = by - 12;
+    page.drawText(caption, { x: margin, y, size: 8.5, font, color: GRAY });
+    y -= 14;
   };
 
   // ── Section 1: consent ──────────────────────────────────────
@@ -194,42 +190,45 @@ export async function generateVerificationPdf(d: VerificationPdfData): Promise<U
     `for rehire, DOT drug & alcohol testing history, and any DOT-recordable accidents, for the purpose of ` +
     `employment verification. I release all parties from any liability for providing this information.`,
   );
-  y -= 8;
+  y -= 6;
+  ensure(74); // keep the applicant signature box together
   await signature(
     d.consentSignature,
     `Applicant signature — signed ${fmt(d.consentSignedAt)}  ·  IP ${d.consentIp ?? "unknown"}`,
   );
 
   // ── Section 2: employer response ────────────────────────────
-  y -= 6;
+  y -= 2;
   section(2, "Prior Employer's Response");
   label("Confirmed employment dates");
   value(
     d.confirmedStartDate
       ? `${fmtDay(d.confirmedStartDate)} — ${d.confirmedEndDate ? fmtDay(d.confirmedEndDate) : "Present"}`
       : "—",
-    14,
+    13.5,
   );
-  y -= 4;
+  y -= 2;
   answer("Eligible for rehire", d.eligibleForRehire, true);
   answer("Drug & alcohol program violation or refusal (DOT)", d.drugAlcoholViolation, false);
   answer("DOT-recordable accident during employment", d.dotRecordableAccident, false);
 
   if (d.dotRecordableAccident === true && d.dotAccidentDetails) {
-    y -= 6;
+    y -= 4;
     label("Accident details");
     paragraph(d.dotAccidentDetails);
   }
   if (d.comments) {
-    y -= 6;
+    y -= 4;
     label("Comments");
     paragraph(d.comments);
   }
 
-  y -= 8;
+  // Keep "Responded by" + employer signature on the same page.
+  y -= 4;
+  ensure(96);
   label("Responded by");
   value(`${d.responderName ?? "—"}${d.responderTitle ? `  (${d.responderTitle})` : ""}`);
-  y -= 4;
+  y -= 2;
   await signature(
     d.responderSignature,
     `Prior employer signature — responded ${fmt(d.respondedAt)}  ·  IP ${d.responderIp ?? "unknown"}`,
