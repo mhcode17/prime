@@ -36,8 +36,14 @@ export default async function DocumentDetailPage({
     (doc.content?.startsWith("data:application/pdf") ?? false);
 
   // Verification records are already-completed documents filed automatically —
-  // they are not templates to prepare fields on or send for signature.
-  const isVerification = doc.kind === "VERIFICATION";
+  // they are not templates to prepare fields on or send for signature. Detect
+  // via kind, or (for records filed before `kind` existed) the back-link from
+  // the driver's experience.
+  const linkedExperience = await prisma.driverExperience.findFirst({
+    where: { verificationDocumentId: doc.id },
+    select: { id: true },
+  });
+  const isVerification = doc.kind === "VERIFICATION" || !!linkedExperience;
 
   const allDrivers = await prisma.driver.findMany({
     where: { companyId },
