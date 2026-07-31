@@ -51,7 +51,7 @@ export async function updateCompany(
   return { ok: true };
 }
 
-const MAX_LOGO_BYTES = 1_500_000; // ~1.5 MB
+const MAX_LOGO_BYTES = 8_000_000; // 8 MB
 const ALLOWED_LOGO_TYPES = ["image/png", "image/jpeg", "image/jpg"];
 
 /** Upload (or replace) the company logo. Stored as a data URL on the company. */
@@ -68,7 +68,7 @@ export async function updateCompanyLogo(
     return { error: "Logo must be a PNG or JPEG image." };
   }
   if (file.size > MAX_LOGO_BYTES) {
-    return { error: "Logo is too large (max 1.5 MB)." };
+    return { error: "Logo is too large (max 8 MB)." };
   }
 
   const mime = file.type === "image/jpg" ? "image/jpeg" : file.type;

@@ -79,7 +79,7 @@ export function LogoSettings({ logo }: { logo: string | null }) {
               </Button>
             )}
           </div>
-          <p className="text-xs text-slate-400">PNG or JPEG, up to 1.5 MB. Used across the app and on generated PDFs.</p>
+          <p className="text-xs text-slate-400">PNG or JPEG, up to 8 MB. Used across the app and on generated PDFs.</p>
         </div>
       </div>
     </form>
