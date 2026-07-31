@@ -33,12 +33,56 @@ export async function GET(
     return new NextResponse("Verification has not been completed yet", { status: 404 });
   }
 
+  const co = exp.driver.company;
+  const cityStateZip = (city: string | null, state: string | null, zip: string | null) =>
+    [[city, state].filter(Boolean).join(", "), zip].filter(Boolean).join(" ").trim();
+  const companyAddressLine = [co.address, cityStateZip(co.city, co.state, co.zip)].filter(Boolean).join(" ").trim();
+
+  // Alcohol/controlled-substances release window: 3 years back from the
+  // application date (approximated by when the driver signed the consent).
+  const appDate = exp.consentSignedAt;
+  let releaseFrom = "";
+  if (appDate) {
+    const from = new Date(appDate);
+    from.setFullYear(from.getFullYear() - 3);
+    releaseFrom = fmtDay(from);
+  }
+
+  type Attempt = { method?: string; by?: string; date?: string };
+  const rawAttempts = Array.isArray(exp.attempts) ? (exp.attempts as unknown as Attempt[]) : [];
+  const attempts = rawAttempts.map((a) => ({
+    method: String(a.method ?? ""),
+    by: String(a.by ?? ""),
+    date: a.date ? fmtDay(new Date(a.date)) : "",
+  }));
+
   const bytes = await generateVerificationPdf({
     envelopeId: exp.id,
     applicantName: `${exp.driver.user.firstName} ${exp.driver.user.lastName}`,
     employerName: exp.employerName,
-    companyName: exp.driver.company.name,
-    companyLogo: exp.driver.company.logo,
+    companyName: co.name,
+    companyLogo: co.logo,
+    companyPhone: co.phone,
+    companyEmail: co.safetyEmail ?? null,
+    companyAddressLine: companyAddressLine || null,
+    companyStreet: co.address,
+    companyCityStateZip: cityStateZip(co.city, co.state, co.zip) || null,
+    companyAttention: co.safetyAttention,
+    companyFax: co.faxNumber,
+
+    employerEmail: exp.email,
+    employerPhone: exp.phone,
+    employerStreet: null,
+    employerCityStateZip: cityStateZip(exp.city, exp.state, null) || null,
+    employerFax: null,
+
+    releaseFrom,
+    releaseTo: appDate ? fmtDay(appDate) : "",
+
+    attempts,
+    infoReceivedMethod: exp.infoReceivedMethod,
+    infoReceivedAt: exp.infoReceivedAt,
+
     position: exp.position ?? "",
     datesStated: `${fmtDay(exp.startDate)} — ${exp.isCurrent ? "Present" : fmtDay(exp.endDate)}`,
     consentSignature: exp.consentSignature,
