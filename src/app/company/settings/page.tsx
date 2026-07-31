@@ -35,6 +35,9 @@ export default async function CompanySettingsPage() {
             dotNumber={company.dotNumber}
             mcNumber={company.mcNumber}
             phone={company.phone}
+            email={company.email}
+            website={company.website}
+            faxNumber={company.faxNumber}
             address={company.address}
             city={company.city}
             state={company.state}

@@ -10,6 +10,9 @@ type Props = {
   dotNumber: string | null;
   mcNumber: string | null;
   phone: string | null;
+  email: string | null;
+  website: string | null;
+  faxNumber: string | null;
   address: string | null;
   city: string | null;
   state: string | null;
@@ -44,9 +47,25 @@ export function CompanySettingsForm(p: Props) {
           <Input name="mcNumber" defaultValue={p.mcNumber ?? ""} />
         </div>
       </div>
-      <div>
-        <Label>Phone</Label>
-        <Input name="phone" defaultValue={p.phone ?? ""} />
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label>Phone</Label>
+          <Input name="phone" defaultValue={p.phone ?? ""} />
+        </div>
+        <div>
+          <Label>Fax (optional)</Label>
+          <Input name="faxNumber" defaultValue={p.faxNumber ?? ""} />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label>Email (optional)</Label>
+          <Input name="email" type="email" defaultValue={p.email ?? ""} />
+        </div>
+        <div>
+          <Label>Website (optional)</Label>
+          <Input name="website" defaultValue={p.website ?? ""} placeholder="https://…" />
+        </div>
       </div>
       <div>
         <Label>Address</Label>
