@@ -8,6 +8,7 @@ import { formatDateTime } from "@/lib/utils";
 import { Download } from "lucide-react";
 import { DriverModuleHeader } from "../driver-module-header";
 import { SendDocToDriver } from "./send-panel";
+import { DocumentRowMenu } from "./document-row-menu";
 
 export default async function DriverDocumentsPage({
   params,
@@ -67,6 +68,7 @@ export default async function DriverDocumentsPage({
                       <th className="px-5 py-3 font-medium">Status</th>
                       <th className="px-5 py-3 font-medium">Signed</th>
                       <th className="px-5 py-3 font-medium">PDF</th>
+                      <th className="px-5 py-3 font-medium"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -91,6 +93,9 @@ export default async function DriverDocumentsPage({
                           ) : (
                             <span className="text-slate-300">—</span>
                           )}
+                        </td>
+                        <td className="px-5 py-3 text-right">
+                          <DocumentRowMenu assignmentId={a.id} title={a.document.title} />
                         </td>
                       </tr>
                     ))}
