@@ -1,15 +1,16 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import {
   recordVerification,
   sendVerificationEmail,
   ensureVerificationLink,
+  resendVerification,
 } from "./verification-actions";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Badge, humanize, statusTone } from "@/components/ui/badge";
-import { Mail, Link2, FileDown } from "lucide-react";
+import { Mail, Link2, FileDown, MoreVertical, RefreshCw, PenLine } from "lucide-react";
 
 export interface VerifEntry {
   id: string;
@@ -53,6 +54,34 @@ export function ExperienceVerification({ entry }: { entry: VerifEntry }) {
   const [sending, startSend] = useTransition();
   const [sendMsg, setSendMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [copying, startCopy] = useTransition();
+  const [resending, startResend] = useTransition();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const isVerified = entry.status === "VERIFIED";
+
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+
+  const resend = () => {
+    if (
+      !window.confirm(
+        "Resend will issue a new link and re-open this verification for a fresh response. The completed response will be replaced when they respond again. Continue?",
+      )
+    )
+      return;
+    setMenuOpen(false);
+    startResend(async () => {
+      setSendMsg(null);
+      const res = await resendVerification(entry.id);
+      setSendMsg(res.ok ? { ok: true, text: "Request resent" } : { ok: false, text: res.error ?? "Failed" });
+    });
+  };
 
   const sendSystemEmail = () =>
     startSend(async () => {
@@ -102,7 +131,48 @@ export function ExperienceVerification({ entry }: { entry: VerifEntry }) {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone={statusTone(entry.status)}>{humanize(entry.status)}</Badge>
-          {!entry.consentSigned ? (
+
+          {isVerified ? (
+            /* Once verified, action buttons are tucked into a kebab menu. */
+            <div className="relative" ref={menuRef}>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setMenuOpen((v) => !v)}
+                disabled={resending}
+                title="More actions"
+                className="px-2"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+              {menuOpen && (
+                <div className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                  <button
+                    type="button"
+                    onClick={resend}
+                    disabled={!entry.email || resending}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    <RefreshCw className="h-4 w-4" /> Resend request
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setMenuOpen(false); copyLink(); }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                  >
+                    <Link2 className="h-4 w-4" /> Copy link
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setMenuOpen(false); setOpen(true); }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+                  >
+                    <PenLine className="h-4 w-4" /> Record result
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : !entry.consentSigned ? (
             <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
               Waiting for driver consent
             </span>
@@ -121,11 +191,11 @@ export function ExperienceVerification({ entry }: { entry: VerifEntry }) {
                   <FileDown className="h-4 w-4" /> Consent PDF
                 </Button>
               </a>
+              <Button size="sm" variant="secondary" onClick={() => setOpen((v) => !v)}>
+                {open ? "Close" : "Record"}
+              </Button>
             </>
           )}
-          <Button size="sm" variant="secondary" onClick={() => setOpen((v) => !v)}>
-            {open ? "Close" : "Record"}
-          </Button>
         </div>
       </div>
 

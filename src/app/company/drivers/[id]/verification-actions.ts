@@ -164,3 +164,72 @@ export async function recordVerification(
   revalidatePath(`/company/drivers/${exp.driverId}`);
   return { ok: true };
 }
+
+/**
+ * Re-send the verification request: issues a fresh link (invalidating the old
+ * one), re-opens the request for a new response, and emails the prior employer.
+ */
+export async function resendVerification(
+  experienceId: string,
+): Promise<{ ok?: boolean; error?: string }> {
+  const { companyId, company, session } = await getCurrentCompany("drivers");
+  const exp = await prisma.driverExperience.findFirst({
+    where: { id: experienceId, driver: { companyId } },
+    include: { driver: { include: { user: true } } },
+  });
+  if (!exp) return { error: "Experience not found" };
+  if (!exp.email) return { error: "This employer has no email address on file." };
+
+  const token = randomUUID();
+  const link = `${baseUrl()}/verify/${token}`;
+  const driverName = `${exp.driver.user.firstName} ${exp.driver.user.lastName}`;
+  const period = `${fmtDate(exp.startDate)} — ${exp.isCurrent ? "Present" : fmtDate(exp.endDate)}`;
+
+  const text = `Hello,
+
+${company.name} is verifying the prior employment of ${driverName}, who reports working at ${exp.employerName} (${period}).
+
+Please complete the secure online verification form:
+
+${link}
+
+Thank you,
+${company.name}`;
+  const html = `
+    <div style="font-family:Arial,sans-serif;font-size:14px;color:#0f172a;line-height:1.5">
+      <p>Hello,</p>
+      <p><b>${company.name}</b> is verifying the prior employment of <b>${driverName}</b>, who reports working at <b>${exp.employerName}</b> (${period}).</p>
+      <p style="margin:20px 0"><a href="${link}" style="background:#2563eb;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;display:inline-block;font-weight:bold">Complete verification →</a></p>
+      <p style="color:#64748b;font-size:12px">Or open this link: <a href="${link}">${link}</a></p>
+      <p>Thank you,<br/>${company.name}</p>
+    </div>`;
+
+  try {
+    await sendEmail({ to: exp.email, subject: `Employment Verification — ${driverName}`, text, html, replyTo: session.email });
+  } catch (e) {
+    return { ok: false, error: e instanceof EmailError ? e.message : "Failed to send email" };
+  }
+
+  const attempts = Array.isArray(exp.attempts) ? (exp.attempts as unknown[]) : [];
+  attempts.push({ method: "email (resend)", by: session.name, date: new Date().toISOString() });
+
+  await prisma.driverExperience.update({
+    where: { id: exp.id },
+    data: {
+      verificationToken: token,
+      verificationStatus: "REQUESTED",
+      verificationMethod: "email",
+      attempts: attempts as object[],
+      respondedAt: null,
+      responderName: null,
+      responderTitle: null,
+      responderSignature: null,
+      responderIp: null,
+      verifiedAt: null,
+      verifiedByName: null,
+    },
+  });
+
+  revalidatePath(`/company/drivers/${exp.driverId}`);
+  return { ok: true };
+}
