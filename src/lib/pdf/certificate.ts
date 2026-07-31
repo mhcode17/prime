@@ -1,7 +1,7 @@
 import "server-only";
 import { PDFDocument, StandardFonts, rgb, type PDFFont } from "pdf-lib";
 import { createHash } from "crypto";
-import { embedLogo, drawLogoRight } from "./logo";
+import { embedLogo } from "./logo";
 
 export interface CertSigner {
   label: string;
@@ -10,13 +10,13 @@ export interface CertSigner {
   ip: string;
 }
 
-const NAVY = rgb(0.1, 0.14, 0.25);
 const ACCENT = rgb(0.145, 0.388, 0.921);
 const DARK = rgb(0.11, 0.15, 0.23);
 const GRAY = rgb(0.45, 0.5, 0.57);
-const LIGHT = rgb(0.97, 0.98, 0.99);
+const LIGHT = rgb(0.975, 0.98, 0.99);
 const BORDER = rgb(0.88, 0.9, 0.94);
 const GREEN = rgb(0.09, 0.6, 0.35);
+const GREEN_BG = rgb(0.88, 0.96, 0.91);
 const WHITE = rgb(1, 1, 1);
 
 /**
@@ -36,51 +36,85 @@ export async function appendCertificate(
   const W = 612, H = 792, margin = 48, contentW = W - margin * 2;
   const page = pdf.addPage([W, H]);
 
-  // Header band + verified seal
-  page.drawRectangle({ x: 0, y: H - 104, width: W, height: 104, color: NAVY });
-  page.drawRectangle({ x: 0, y: H - 107, width: W, height: 3, color: ACCENT });
-  page.drawText("Certificate of Completion", { x: margin, y: H - 56, size: 22, font: bold, color: WHITE });
-  page.drawText("Audit trail & document integrity", { x: margin, y: H - 78, size: 11, font, color: rgb(0.72, 0.78, 0.88) });
-  const logoImg = await embedLogo(pdf, opts.logo);
-  const logoW = drawLogoRight(page, logoImg, { right: W - margin, centerY: H - 52, maxW: 120, maxH: 48 });
-  const cx = W - margin - 18 - (logoW ? logoW + 18 : 0), cy = H - 54;
-  page.drawCircle({ x: cx, y: cy, size: 16, color: GREEN });
-  page.drawLine({ start: { x: cx - 7, y: cy + 1 }, end: { x: cx - 2, y: cy - 5 }, thickness: 2.2, color: WHITE });
-  page.drawLine({ start: { x: cx - 2, y: cy - 5 }, end: { x: cx + 8, y: cy + 7 }, thickness: 2.2, color: WHITE });
+  // ── Decorative frame (subtle, certificate-like) ──
+  page.drawRectangle({ x: 24, y: 24, width: W - 48, height: H - 48, borderColor: BORDER, borderWidth: 1 });
+  // Thin brand accent bar along the very top of the frame
+  page.drawRectangle({ x: 24, y: H - 30, width: W - 48, height: 6, color: ACCENT });
 
-  let y = H - 104 - 40;
+  const logoImg = await embedLogo(pdf, opts.logo);
+
+  // ── Header row: logo (left, on white → clearly visible) + verified seal ──
+  const rowCy = H - 66;
+  if (logoImg) {
+    const maxW = 210, maxH = 50;
+    const s = Math.min(maxW / logoImg.width, maxH / logoImg.height);
+    page.drawImage(logoImg, {
+      x: margin,
+      y: rowCy - (logoImg.height * s) / 2,
+      width: logoImg.width * s,
+      height: logoImg.height * s,
+    });
+  }
+  // Verified seal (green check) at far right
+  const cx = W - margin - 15, cy = rowCy;
+  page.drawCircle({ x: cx, y: cy, size: 15, color: GREEN });
+  page.drawLine({ start: { x: cx - 6.5, y: cy + 0.5 }, end: { x: cx - 1.5, y: cy - 5 }, thickness: 2.4, color: WHITE });
+  page.drawLine({ start: { x: cx - 1.5, y: cy - 5 }, end: { x: cx + 7, y: cy + 6.5 }, thickness: 2.4, color: WHITE });
+  // "VERIFIED" pill to the left of the seal
+  const tag = "VERIFIED";
+  const tagW = bold.widthOfTextAtSize(tag, 8) + 16;
+  page.drawRectangle({ x: cx - 15 - 8 - tagW, y: cy - 7, width: tagW, height: 15, color: GREEN_BG });
+  page.drawText(tag, { x: cx - 15 - 8 - tagW + 8, y: cy - 3, size: 8, font: bold, color: GREEN });
+
+  // ── Title ──
+  let y = H - 118;
+  page.drawText("Certificate of Completion", { x: margin, y, size: 25, font: bold, color: DARK });
+  y -= 18;
+  page.drawText("Audit trail & document integrity", { x: margin, y, size: 11, font, color: GRAY });
+  y -= 18;
+  page.drawLine({ start: { x: margin, y }, end: { x: W - margin, y }, thickness: 1, color: BORDER });
+  y -= 30;
+
+  // ── Meta ──
   const kv = (label: string, value: string) => {
     page.drawText(label.toUpperCase(), { x: margin, y, size: 8, font: bold, color: GRAY });
-    y -= 15;
+    y -= 16;
     page.drawText(value || "—", { x: margin, y, size: 12, font, color: DARK });
-    y -= 26;
+    y -= 28;
   };
   kv("Envelope ID", opts.envelopeId);
   kv("Document", opts.documentTitle);
 
-  y -= 4;
+  // ── Signers ──
+  y -= 2;
   page.drawText("Signers", { x: margin, y, size: 14, font: bold, color: DARK });
-  y -= 12;
+  y -= 16;
   for (const s of opts.signers) {
-    const cardH = 54;
-    page.drawRectangle({ x: margin, y: y - cardH + 12, width: contentW, height: cardH, color: LIGHT, borderColor: BORDER, borderWidth: 1 });
-    page.drawText(s.label.toUpperCase(), { x: margin + 14, y: y - 4, size: 8, font: bold, color: ACCENT });
-    page.drawText(s.name || "—", { x: margin + 14, y: y - 20, size: 12, font: bold, color: DARK });
-    page.drawText(`Signed ${s.at}   ·   IP ${s.ip}`, { x: margin + 14, y: y - 34, size: 9, font, color: GRAY });
+    const cardH = 56;
+    const top = y;
+    page.drawRectangle({ x: margin, y: top - cardH + 12, width: contentW, height: cardH, color: LIGHT, borderColor: BORDER, borderWidth: 1 });
+    // left accent stripe
+    page.drawRectangle({ x: margin, y: top - cardH + 12, width: 3.5, height: cardH, color: ACCENT });
+    page.drawText(s.label.toUpperCase(), { x: margin + 16, y: top - 4, size: 8, font: bold, color: ACCENT });
+    page.drawText(s.name || "—", { x: margin + 16, y: top - 21, size: 12.5, font: bold, color: DARK });
+    page.drawText(`Signed ${s.at}    ·    IP ${s.ip}`, { x: margin + 16, y: top - 35, size: 9, font, color: GRAY });
     y -= cardH + 10;
   }
 
+  // ── Integrity hash ──
   y -= 8;
   page.drawText("Document integrity (SHA-256)", { x: margin, y, size: 12, font: bold, color: DARK });
-  y -= 20;
-  page.drawRectangle({ x: margin, y: y - 22, width: contentW, height: 30, color: rgb(0.96, 0.97, 0.99), borderColor: BORDER, borderWidth: 1 });
+  y -= 22;
+  page.drawRectangle({ x: margin, y: y - 22, width: contentW, height: 32, color: rgb(0.965, 0.975, 0.99), borderColor: BORDER, borderWidth: 1 });
   page.drawText(hash, { x: margin + 12, y: y - 8, size: 8.4, font: mono, color: rgb(0.3, 0.35, 0.42) });
-  y -= 40;
+  y -= 42;
   page.drawText("Any modification to the signed record changes this hash and invalidates the certificate.", {
     x: margin, y, size: 8, font, color: GRAY,
   });
 
-  // footer
-  page.drawLine({ start: { x: margin, y: 40 }, end: { x: W - margin, y: 40 }, thickness: 0.5, color: BORDER });
-  page.drawText("Prime Fleet — Employment Verification", { x: margin, y: 28, size: 8, font, color: GRAY });
+  // ── Footer ──
+  page.drawLine({ start: { x: margin, y: 44 }, end: { x: W - margin, y: 44 }, thickness: 0.5, color: BORDER });
+  page.drawText("Prime Fleet — Electronic Records", { x: margin, y: 33, size: 8, font, color: GRAY });
+  const seal = "Certified electronically";
+  page.drawText(seal, { x: W - margin - font.widthOfTextAtSize(seal, 8), y: 33, size: 8, font, color: GRAY });
 }
