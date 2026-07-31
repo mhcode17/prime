@@ -144,8 +144,8 @@ export async function generateVerificationPdf(d: VerificationPdfData): Promise<U
   };
 
   const contactBadge = (cx: number, cy: number, type: string) => {
-    page.drawCircle({ x: cx, y: cy, size: 8, color: NAVY });
-    const scale = 0.46; // 24 * 0.46 ≈ 11px glyph
+    page.drawCircle({ x: cx, y: cy, size: 10, color: NAVY });
+    const scale = 0.55; // 24 * 0.55 ≈ 13px glyph
     const sz = 24 * scale;
     page.drawSvgPath(CONTACT_ICONS[type], { x: cx - sz / 2, y: cy + sz / 2, scale, color: WHITE });
   };
@@ -153,7 +153,7 @@ export async function generateVerificationPdf(d: VerificationPdfData): Promise<U
   const drawHeader = () => {
     if (logoImg) {
       // Larger logo band so the mark reads clearly in the header.
-      const boxTop = H - 16, boxH = 64, boxW = 280;
+      const boxTop = H - 14, boxH = 92, boxW = 360;
       const s = Math.min(boxW / logoImg.width, boxH / logoImg.height);
       page.drawImage(logoImg, {
         x: margin,
@@ -168,22 +168,22 @@ export async function generateVerificationPdf(d: VerificationPdfData): Promise<U
       { t: d.companyWebsite ?? "", icon: "web" },
       { t: d.companyAddressLine ?? "", icon: "place" },
     ].filter((x) => x.t);
-    const size = 9;
-    const lh = 18;
-    const startCy = H - 50 + ((items.length - 1) * lh) / 2;
+    const size = 10.5;
+    const lh = 22;
+    const startCy = H - 56 + ((items.length - 1) * lh) / 2;
     items.forEach((it, i) => {
       const cy = startCy - i * lh;
-      page.drawText(it.t, { x: right - 24 - w(it.t, size), y: cy - 3, size, font, color: DARK });
-      contactBadge(right - 9, cy, it.icon);
+      page.drawText(it.t, { x: right - 30 - w(it.t, size), y: cy - 3.5, size, font, color: DARK });
+      contactBadge(right - 12, cy, it.icon);
     });
-    page.drawLine({ start: { x: margin, y: H - 88 }, end: { x: right, y: H - 88 }, thickness: 2.4, color: BLUE });
+    page.drawLine({ start: { x: margin, y: H - 116 }, end: { x: right, y: H - 116 }, thickness: 2.6, color: BLUE });
   };
 
-  const newPage = () => { page = pdf.addPage([W, H]); drawHeader(); y = H - 104; };
+  const newPage = () => { page = pdf.addPage([W, H]); drawHeader(); y = H - 134; };
   const ensure = (space: number) => { if (y - space < bottomY) newPage(); };
 
   drawHeader();
-  y = H - 104;
+  y = H - 134;
 
   // Document title
   const title = "SAFETY PERFORMANCE HISTORY RECORDS REQUEST";
