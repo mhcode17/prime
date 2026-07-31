@@ -5,7 +5,7 @@ import { updateCompanyLogo, removeCompanyLogo } from "./actions";
 import { Button } from "@/components/ui/button";
 import { ImagePlus, Trash2, Building2 } from "lucide-react";
 
-export function LogoSettings({ logo }: { logo: string | null }) {
+export function LogoSettings({ logoSrc }: { logoSrc: string | null }) {
   const [state, action, uploading] = useActionState<
     { error?: string; ok?: boolean } | undefined,
     FormData
@@ -15,7 +15,7 @@ export function LogoSettings({ logo }: { logo: string | null }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
-  const current = preview ?? logo;
+  const current = preview ?? logoSrc;
 
   const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -73,7 +73,7 @@ export function LogoSettings({ logo }: { logo: string | null }) {
               <ImagePlus className="h-4 w-4" />
               {uploading ? "Uploading…" : current ? "Change logo" : "Upload logo"}
             </Button>
-            {logo && (
+            {logoSrc && (
               <Button type="button" size="sm" variant="ghost" disabled={uploading || removing} onClick={remove}>
                 <Trash2 className="h-4 w-4" /> {removing ? "Removing…" : "Remove"}
               </Button>

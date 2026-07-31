@@ -39,12 +39,15 @@ export default async function CompanyLayout({
     ];
   }
 
+  const logoSrc = company.logo
+    ? `/api/company/${companyId}/logo?v=${company.updatedAt.getTime()}`
+    : null;
   const switcher = (
     <div className="flex items-center gap-2.5">
-      {company.logo && (
+      {logoSrc && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={company.logo}
+          src={logoSrc}
           alt=""
           className="h-7 w-7 rounded-md border border-slate-200 bg-white object-contain"
         />

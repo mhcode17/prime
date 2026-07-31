@@ -20,7 +20,9 @@ export default async function CompanySettingsPage() {
           <CardTitle>Company logo</CardTitle>
         </CardHeader>
         <CardContent>
-          <LogoSettings logo={company.logo} />
+          <LogoSettings
+            logoSrc={company.logo ? `/api/company/${company.id}/logo?v=${company.updatedAt.getTime()}` : null}
+          />
         </CardContent>
       </Card>
       <Card>
