@@ -35,6 +35,10 @@ export default async function DocumentDetailPage({
     doc.fileType === "application/pdf" ||
     (doc.content?.startsWith("data:application/pdf") ?? false);
 
+  // Verification records are already-completed documents filed automatically —
+  // they are not templates to prepare fields on or send for signature.
+  const isVerification = doc.kind === "VERIFICATION";
+
   const allDrivers = await prisma.driver.findMany({
     where: { companyId },
     include: { user: true },
@@ -58,7 +62,7 @@ export default async function DocumentDetailPage({
         title={doc.title}
         description={doc.description ?? undefined}
         actions={
-          isPdf ? (
+          isPdf && !isVerification ? (
             <Link href={`/company/documents/${doc.id}/fields`}>
               <Button variant="outline">
                 <PenSquare className="h-4 w-4" />
@@ -67,15 +71,28 @@ export default async function DocumentDetailPage({
                   : "Prepare fields"}
               </Button>
             </Link>
+          ) : isVerification ? (
+            <a href={`/api/assignments/${doc.assignments[0]?.id}/pdf`}>
+              <Button variant="outline">
+                <Download className="h-4 w-4" /> Download PDF
+              </Button>
+            </a>
           ) : undefined
         }
       />
-      {isPdf && doc._count.fields === 0 && (
-        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          No signature/fill fields placed yet. Click{" "}
-          <span className="font-medium">Prepare fields</span> to add a signature
-          box and auto-fill fields before sending.
+      {isVerification ? (
+        <div className="mb-6 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+          <FileCheck2 className="h-4 w-4" />
+          Completed verification record — already signed by the prior employer and filed here. No further action needed.
         </div>
+      ) : (
+        isPdf && doc._count.fields === 0 && (
+          <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            No signature/fill fields placed yet. Click{" "}
+            <span className="font-medium">Prepare fields</span> to add a signature
+            box and auto-fill fields before sending.
+          </div>
+        )
       )}
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -91,7 +108,9 @@ export default async function DocumentDetailPage({
 
           <Card>
             <CardHeader>
-              <CardTitle>Recipients ({doc.assignments.length})</CardTitle>
+              <CardTitle>
+                {isVerification ? `Filed for (${doc.assignments.length})` : `Recipients (${doc.assignments.length})`}
+              </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               {doc.assignments.length === 0 ? (
@@ -154,10 +173,17 @@ export default async function DocumentDetailPage({
         <div>
           <Card>
             <CardHeader>
-              <CardTitle>Send to drivers</CardTitle>
+              <CardTitle>{isVerification ? "About" : "Send to drivers"}</CardTitle>
             </CardHeader>
             <CardContent>
-              <SendPanel documentId={doc.id} drivers={driversForPanel} />
+              {isVerification ? (
+                <p className="text-sm text-slate-500">
+                  This is a completed Employment Verification, filed automatically from the
+                  driver&apos;s employment history. It is not sent to drivers for signature.
+                </p>
+              ) : (
+                <SendPanel documentId={doc.id} drivers={driversForPanel} />
+              )}
             </CardContent>
           </Card>
         </div>

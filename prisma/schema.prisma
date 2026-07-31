@@ -311,6 +311,7 @@ model Document {
 
   title       String
   description String?
+  kind        String? // null = template to send; "VERIFICATION" = completed record filed automatically
   // File stored as base64/data or a storage URL. For MVP: data URL / text.
   fileName    String?
   fileType    String? // application/pdf, etc.

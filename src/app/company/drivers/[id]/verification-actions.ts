@@ -277,6 +277,7 @@ export async function addVerificationToDocuments(
         companyId,
         title,
         description: `Prior-employer safety performance history for ${applicant}.`,
+        kind: "VERIFICATION",
         fileName,
         fileType: "application/pdf",
         content: dataUrl,
