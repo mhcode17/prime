@@ -268,7 +268,7 @@ export async function addVerificationToDocuments(
   if (existing) {
     await prisma.document.update({
       where: { id: existing.id },
-      data: { title, fileName, fileType: "application/pdf", content: dataUrl },
+      data: { title, kind: "VERIFICATION", fileName, fileType: "application/pdf", content: dataUrl },
     });
     documentId = existing.id;
   } else {
