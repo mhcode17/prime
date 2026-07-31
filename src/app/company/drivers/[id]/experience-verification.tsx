@@ -39,9 +39,6 @@ export interface VerifEntry {
   dotAccidentDetails: string;
 }
 
-function triLabel(v: boolean | null) {
-  return v === true ? "Yes" : v === false ? "No" : "Unknown";
-}
 function triValue(v: boolean | null) {
   return v === true ? "yes" : v === false ? "no" : "";
 }
@@ -138,45 +135,20 @@ export function ExperienceVerification({ entry }: { entry: VerifEntry }) {
         </div>
       )}
 
-      {/* Existing verification summary */}
-      {entry.status !== "NOT_REQUESTED" && !open && (
-        <div className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
-          <div>
-            {entry.confirmedDates ? (
-              <>Confirmed dates: <b>{entry.confirmedDates}</b> · </>
-            ) : null}
-            Eligible for rehire: <b>{triLabel(entry.eligibleForRehire)}</b>
-            {entry.respondedAt && (
-              <>
-                {" "}· Drug/alcohol violation: <b>{triLabel(entry.drugAlcoholViolation)}</b> ·
-                DOT accident: <b>{triLabel(entry.dotRecordableAccident)}</b>
-              </>
-            )}
-          </div>
-          {entry.dotAccidentDetails && (
-            <div className="mt-1 text-slate-500">Accident: {entry.dotAccidentDetails}</div>
-          )}
-          <div className="text-slate-400">
-            {entry.method && `via ${entry.method}`}
-            {entry.respondedAt
-              ? ` · responded by ${entry.responderName}${entry.responderTitle ? ` (${entry.responderTitle})` : ""} · ${entry.respondedAt}`
-              : entry.verifiedByName
-                ? ` · by ${entry.verifiedByName}${entry.verifiedAt ? ` · ${entry.verifiedAt}` : ""}`
-                : ""}
-          </div>
-          {entry.notes && <div className="mt-1 text-slate-500">“{entry.notes}”</div>}
-          {entry.signature?.startsWith("data:image") && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={entry.signature} alt="signature" className="mt-2 max-h-16 rounded border border-slate-200 bg-white" />
-          )}
-          {entry.respondedAt && (
-            <a
-              href={`/api/experience/${entry.id}/verification-pdf`}
-              className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-brand-300 bg-white px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-50"
-            >
-              <FileDown className="h-4 w-4" /> Download verification (PDF)
-            </a>
-          )}
+      {/* When the prior employer has responded, offer the full PDF (details
+          are in the document; the inline summary is intentionally hidden). */}
+      {entry.respondedAt && !open && (
+        <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-400">
+          <a
+            href={`/api/experience/${entry.id}/verification-pdf`}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-brand-300 bg-white px-3 py-1.5 font-medium text-brand-700 hover:bg-brand-50"
+          >
+            <FileDown className="h-4 w-4" /> Download verification (PDF)
+          </a>
+          <span>
+            responded by {entry.responderName}
+            {entry.responderTitle ? ` (${entry.responderTitle})` : ""} · {entry.respondedAt}
+          </span>
         </div>
       )}
 
