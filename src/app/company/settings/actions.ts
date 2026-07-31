@@ -50,3 +50,42 @@ export async function updateCompany(
   revalidatePath("/company");
   return { ok: true };
 }
+
+const MAX_LOGO_BYTES = 1_500_000; // ~1.5 MB
+const ALLOWED_LOGO_TYPES = ["image/png", "image/jpeg", "image/jpg"];
+
+/** Upload (or replace) the company logo. Stored as a data URL on the company. */
+export async function updateCompanyLogo(
+  _prev: { error?: string; ok?: boolean } | undefined,
+  formData: FormData,
+): Promise<{ error?: string; ok?: boolean }> {
+  const { companyId } = await requireCompanyOwner();
+  const file = formData.get("logo");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Please choose an image file." };
+  }
+  if (!ALLOWED_LOGO_TYPES.includes(file.type)) {
+    return { error: "Logo must be a PNG or JPEG image." };
+  }
+  if (file.size > MAX_LOGO_BYTES) {
+    return { error: "Logo is too large (max 1.5 MB)." };
+  }
+
+  const mime = file.type === "image/jpg" ? "image/jpeg" : file.type;
+  const buf = Buffer.from(await file.arrayBuffer());
+  const dataUrl = `data:${mime};base64,${buf.toString("base64")}`;
+
+  await prisma.company.update({ where: { id: companyId }, data: { logo: dataUrl } });
+  revalidatePath("/company/settings");
+  revalidatePath("/company");
+  return { ok: true };
+}
+
+/** Remove the company logo. */
+export async function removeCompanyLogo(): Promise<{ error?: string; ok?: boolean }> {
+  const { companyId } = await requireCompanyOwner();
+  await prisma.company.update({ where: { id: companyId }, data: { logo: null } });
+  revalidatePath("/company/settings");
+  revalidatePath("/company");
+  return { ok: true };
+}

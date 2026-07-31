@@ -1,6 +1,7 @@
 import "server-only";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { createHash } from "crypto";
+import { embedLogo, drawLogoRight } from "./logo";
 
 export interface PlacedField {
   id: string;
@@ -23,6 +24,7 @@ export interface CertificateInfo {
   signerName: string;
   signerEmail: string;
   companyName: string;
+  companyLogo?: string | null;
   signerIp: string;
   createdAt: Date;
   viewedAt: Date | null;
@@ -130,6 +132,8 @@ export async function generateSignedPdf(params: {
   };
 
   cp.drawRectangle({ x: 0, y: 792 - 8, width: 612, height: 8, color: rgb(0.145, 0.388, 0.921) });
+  const certLogo = await embedLogo(pdf, cert.companyLogo);
+  drawLogoRight(cp, certLogo, { right: 612 - margin, centerY: y - 6, maxW: 120, maxH: 40 });
   line("Certificate of Completion", { size: 22, bold: true, gap: 34 });
   line("This certifies the electronic signing of the document below.", {
     size: 10,

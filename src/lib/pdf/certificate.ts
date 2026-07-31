@@ -1,6 +1,7 @@
 import "server-only";
 import { PDFDocument, StandardFonts, rgb, type PDFFont } from "pdf-lib";
 import { createHash } from "crypto";
+import { embedLogo, drawLogoRight } from "./logo";
 
 export interface CertSigner {
   label: string;
@@ -26,7 +27,7 @@ export async function appendCertificate(
   pdf: PDFDocument,
   font: PDFFont,
   bold: PDFFont,
-  opts: { envelopeId: string; documentTitle: string; signers: CertSigner[] },
+  opts: { envelopeId: string; documentTitle: string; signers: CertSigner[]; logo?: string | null },
 ): Promise<void> {
   const preBytes = await pdf.save();
   const hash = createHash("sha256").update(preBytes).digest("hex");
@@ -40,7 +41,9 @@ export async function appendCertificate(
   page.drawRectangle({ x: 0, y: H - 107, width: W, height: 3, color: ACCENT });
   page.drawText("Certificate of Completion", { x: margin, y: H - 56, size: 22, font: bold, color: WHITE });
   page.drawText("Audit trail & document integrity", { x: margin, y: H - 78, size: 11, font, color: rgb(0.72, 0.78, 0.88) });
-  const cx = W - margin - 18, cy = H - 54;
+  const logoImg = await embedLogo(pdf, opts.logo);
+  const logoW = drawLogoRight(page, logoImg, { right: W - margin, centerY: H - 52, maxW: 120, maxH: 48 });
+  const cx = W - margin - 18 - (logoW ? logoW + 18 : 0), cy = H - 54;
   page.drawCircle({ x: cx, y: cy, size: 16, color: GREEN });
   page.drawLine({ start: { x: cx - 7, y: cy + 1 }, end: { x: cx - 2, y: cy - 5 }, thickness: 2.2, color: WHITE });
   page.drawLine({ start: { x: cx - 2, y: cy - 5 }, end: { x: cx + 8, y: cy + 7 }, thickness: 2.2, color: WHITE });

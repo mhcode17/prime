@@ -137,7 +137,7 @@ export async function signWithFields(
 
   const company = await prisma.company.findUnique({
     where: { id: driver.companyId },
-    select: { name: true },
+    select: { name: true, logo: true },
   });
 
   let signedPdf: string;
@@ -163,6 +163,7 @@ export async function signWithFields(
         signerName: `${signer.firstName} ${signer.lastName}`,
         signerEmail: signer.email,
         companyName: company?.name ?? "",
+        companyLogo: company?.logo ?? null,
         signerIp,
         createdAt: assignment.createdAt,
         viewedAt: assignment.viewedAt,

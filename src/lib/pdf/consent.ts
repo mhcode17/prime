@@ -1,12 +1,14 @@
 import "server-only";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { appendCertificate } from "./certificate";
+import { embedLogo, drawLogoRight } from "./logo";
 
 export interface ConsentPdfData {
   envelopeId: string;
   applicantName: string;
   employerName: string;
   companyName: string;
+  companyLogo?: string | null;
   position: string;
   datesStated: string;
   signaturePng: string | null; // data URL
@@ -49,6 +51,8 @@ export async function generateConsentPdf(d: ConsentPdfData): Promise<Uint8Array>
   page.drawRectangle({ x: 0, y: 792 - 8, width: 612, height: 8, color: rgb(0.145, 0.388, 0.921) });
 
   page.drawText("Authorization to Release Information", { x: margin, y, size: 20, font: bold, color: dark });
+  const cLogo = await embedLogo(pdf, d.companyLogo);
+  drawLogoRight(page, cLogo, { right: 612 - margin, centerY: y + 4, maxW: 120, maxH: 40 });
   y -= 24;
   page.drawText("Employment Verification — DOT / FMCSA", { x: margin, y, size: 11, font, color: gray });
   y -= 30;
@@ -131,6 +135,7 @@ export async function generateConsentPdf(d: ConsentPdfData): Promise<Uint8Array>
   await appendCertificate(pdf, font, bold, {
     envelopeId: d.envelopeId,
     documentTitle: `Authorization to Release Information — ${d.applicantName} @ ${d.employerName}`,
+    logo: d.companyLogo,
     signers: [
       {
         label: "Applicant",

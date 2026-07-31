@@ -101,6 +101,7 @@ model Company {
   state         String?
   zip           String?
   phone         String?
+  logo          String? // company logo as a data URL (PNG/JPEG), used in the app & PDFs
   faxNumber     String?
   safetyAttention String? // "Attention" line for safety records requests
   safetyEmail   String? // where prior employers send safety history

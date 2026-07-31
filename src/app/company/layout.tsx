@@ -40,7 +40,17 @@ export default async function CompanyLayout({
   }
 
   const switcher = (
-    <CompanySwitcher companies={ctx.accessibleCompanies} activeId={companyId} />
+    <div className="flex items-center gap-2.5">
+      {company.logo && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={company.logo}
+          alt=""
+          className="h-7 w-7 rounded-md border border-slate-200 bg-white object-contain"
+        />
+      )}
+      <CompanySwitcher companies={ctx.accessibleCompanies} activeId={companyId} />
+    </div>
   );
 
   return (

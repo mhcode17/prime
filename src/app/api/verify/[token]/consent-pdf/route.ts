@@ -27,6 +27,7 @@ export async function GET(
     applicantName: `${exp.driver.user.firstName} ${exp.driver.user.lastName}`,
     employerName: exp.employerName,
     companyName: exp.driver.company.name,
+    companyLogo: exp.driver.company.logo,
     position: exp.position ?? "",
     datesStated: `${fmt(exp.startDate)} — ${exp.isCurrent ? "Present" : fmt(exp.endDate)}`,
     signaturePng: exp.consentSignature,

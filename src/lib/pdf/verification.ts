@@ -1,6 +1,7 @@
 import "server-only";
 import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont } from "pdf-lib";
 import { appendCertificate } from "./certificate";
+import { embedLogo, drawLogoRight } from "./logo";
 import { VEHICLE_TYPES, REASONS, CHARACTERISTICS, RATING_OPTIONS, DA_QUESTIONS, type Accident } from "../sph";
 
 export interface VerificationPdfData {
@@ -8,6 +9,7 @@ export interface VerificationPdfData {
   applicantName: string;
   employerName: string;
   companyName: string;
+  companyLogo?: string | null;
   position: string;
   datesStated: string;
 
@@ -138,9 +140,12 @@ export async function generateVerificationPdf(d: VerificationPdfData): Promise<U
   page.drawRectangle({ x: 0, y: H - 85, width: W, height: 3, color: ACCENT });
   page.drawText("Employment Verification", { x: margin, y: H - 44, size: 21, font: bold, color: WHITE });
   page.drawText("Safety Performance History  ·  DOT / FMCSA §391.23 / §40.25", { x: margin, y: H - 64, size: 10, font, color: rgb(0.72, 0.78, 0.88) });
+  const vLogo = await embedLogo(pdf, d.companyLogo);
+  const vLogoW = drawLogoRight(page, vLogo, { right: W - margin, centerY: H - 41, maxW: 130, maxH: 46 });
   const chipW = bold.widthOfTextAtSize("COMPLETED", 9) + 20;
-  page.drawRectangle({ x: W - margin - chipW, y: H - 50, width: chipW, height: 19, color: GREEN_BG });
-  page.drawText("COMPLETED", { x: W - margin - chipW + 10, y: H - 44, size: 9, font: bold, color: GREEN });
+  const chipX = W - margin - chipW - (vLogoW ? vLogoW + 16 : 0);
+  page.drawRectangle({ x: chipX, y: H - 50, width: chipW, height: 19, color: GREEN_BG });
+  page.drawText("COMPLETED", { x: chipX + 10, y: H - 44, size: 9, font: bold, color: GREEN });
   y = H - 82 - 16;
 
   // ── Applicant card (Part 1) ──
@@ -280,6 +285,7 @@ export async function generateVerificationPdf(d: VerificationPdfData): Promise<U
   await appendCertificate(pdf, font, bold, {
     envelopeId: d.envelopeId,
     documentTitle: `Employment Verification — ${d.applicantName} @ ${d.employerName}`,
+    logo: d.companyLogo,
     signers: [
       { label: "Applicant (consent)", name: d.applicantName, at: fmt(d.consentSignedAt), ip: d.consentIp ?? "unknown" },
       { label: "Prior employer (response)", name: `${d.responderName ?? "—"}${d.responderTitle ? ` (${d.responderTitle})` : ""}`, at: fmt(d.respondedAt), ip: d.responderIp ?? "unknown" },
