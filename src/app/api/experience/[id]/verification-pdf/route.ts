@@ -73,11 +73,14 @@ export async function GET(
     responderIp: exp.responderIp,
   });
 
-  const safe = exp.employerName.replace(/[^a-z0-9]+/gi, "_").slice(0, 40);
+  // File name: "Troy Ford - PEV BEK TRANS GROUP INC.pdf"
+  const clean = (s: string) => s.replace(/[^a-z0-9 &.\-]/gi, " ").replace(/\s+/g, " ").trim();
+  const driverName = clean(`${exp.driver.user.firstName} ${exp.driver.user.lastName}`);
+  const fileName = `${driverName} - PEV ${clean(exp.employerName)}.pdf`;
   return new NextResponse(Buffer.from(bytes), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="Verification_${safe}.pdf"`,
+      "Content-Disposition": `attachment; filename="${fileName}"; filename*=UTF-8''${encodeURIComponent(fileName)}`,
       "Cache-Control": "private, no-store",
     },
   });
