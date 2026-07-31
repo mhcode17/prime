@@ -208,6 +208,7 @@ export default async function DriverDetailPage({
                     ? `${formatDate(e.confirmedStartDate)} — ${e.confirmedEndDate ? formatDate(e.confirmedEndDate) : "Present"}`
                     : "",
                   dotAccidentDetails: e.dotAccidentDetails ?? "",
+                  addedToDocuments: !!e.verificationDocumentId,
                 };
                 return <ExperienceVerification key={e.id} entry={entry} />;
               })}

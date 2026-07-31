@@ -1,10 +1,12 @@
 "use server";
 
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { getCurrentCompany } from "@/lib/current";
 import { sendEmail, EmailError } from "@/lib/email";
+import { generateVerificationPdf } from "@/lib/pdf/verification";
+import { buildVerificationData } from "@/lib/pdf/verification-data";
 import type { VerificationStatus } from "@prisma/client";
 
 function fmtDate(d: Date | null): string {
@@ -231,5 +233,89 @@ ${company.name}`;
   });
 
   revalidatePath(`/company/drivers/${exp.driverId}`);
+  return { ok: true };
+}
+
+/**
+ * File the completed Employment Verification PDF into the driver's Documents,
+ * so all of the driver's paperwork lives in one place. Idempotent: if it was
+ * already added, the existing Document + its signed record are refreshed.
+ */
+export async function addVerificationToDocuments(
+  experienceId: string,
+): Promise<{ ok?: boolean; error?: string }> {
+  const { companyId, session } = await getCurrentCompany("drivers");
+  const exp = await prisma.driverExperience.findFirst({
+    where: { id: experienceId, driver: { companyId } },
+    include: { driver: { include: { user: true, company: true } } },
+  });
+  if (!exp) return { error: "Experience not found" };
+  if (!exp.respondedAt) return { error: "Verification is not completed yet." };
+
+  const bytes = await generateVerificationPdf(buildVerificationData(exp));
+  const dataUrl = `data:application/pdf;base64,${Buffer.from(bytes).toString("base64")}`;
+  const hash = createHash("sha256").update(bytes).digest("hex");
+  const applicant = `${exp.driver.user.firstName} ${exp.driver.user.lastName}`;
+  const title = `Employment Verification — ${exp.employerName}`;
+  const fileName = `${applicant} - PEV ${exp.employerName}.pdf`.replace(/[^a-z0-9 &.\-]/gi, " ").replace(/\s+/g, " ").trim();
+
+  // Reuse the previously-created Document if we already filed this one.
+  const existing = exp.verificationDocumentId
+    ? await prisma.document.findFirst({ where: { id: exp.verificationDocumentId, companyId } })
+    : null;
+
+  let documentId: string;
+  if (existing) {
+    await prisma.document.update({
+      where: { id: existing.id },
+      data: { title, fileName, fileType: "application/pdf", content: dataUrl },
+    });
+    documentId = existing.id;
+  } else {
+    const doc = await prisma.document.create({
+      data: {
+        companyId,
+        title,
+        description: `Prior-employer safety performance history for ${applicant}.`,
+        fileName,
+        fileType: "application/pdf",
+        content: dataUrl,
+        uploadedById: session.userId,
+      },
+    });
+    documentId = doc.id;
+  }
+
+  // Upsert the per-driver assignment as an already-completed (SIGNED) record.
+  await prisma.documentAssignment.upsert({
+    where: { documentId_driverId: { documentId, driverId: exp.driverId } },
+    create: {
+      documentId,
+      driverId: exp.driverId,
+      status: "SIGNED",
+      signedPdf: dataUrl,
+      signedName: exp.responderName ?? applicant,
+      signedAt: exp.respondedAt,
+      contentHash: hash,
+      signerIp: exp.responderIp,
+    },
+    update: {
+      status: "SIGNED",
+      signedPdf: dataUrl,
+      signedName: exp.responderName ?? applicant,
+      signedAt: exp.respondedAt,
+      contentHash: hash,
+    },
+  });
+
+  if (exp.verificationDocumentId !== documentId) {
+    await prisma.driverExperience.update({
+      where: { id: exp.id },
+      data: { verificationDocumentId: documentId },
+    });
+  }
+
+  revalidatePath(`/company/drivers/${exp.driverId}`);
+  revalidatePath(`/company/drivers/${exp.driverId}/documents`);
   return { ok: true };
 }

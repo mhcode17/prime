@@ -280,6 +280,10 @@ model DriverExperience {
   infoReceivedMethod String?
   infoReceivedAt     DateTime?
 
+  // When the completed verification PDF has been filed into the driver's
+  // Documents, this points at the generated Document (for idempotent re-adds).
+  verificationDocumentId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

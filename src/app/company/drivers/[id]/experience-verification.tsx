@@ -6,11 +6,12 @@ import {
   sendVerificationEmail,
   ensureVerificationLink,
   resendVerification,
+  addVerificationToDocuments,
 } from "./verification-actions";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Badge, humanize, statusTone } from "@/components/ui/badge";
-import { Mail, Link2, FileDown, MoreVertical, RefreshCw, PenLine } from "lucide-react";
+import { Mail, Link2, FileDown, MoreVertical, RefreshCw, PenLine, FilePlus2, Check } from "lucide-react";
 
 export interface VerifEntry {
   id: string;
@@ -38,6 +39,7 @@ export interface VerifEntry {
   consentSigned: boolean;
   confirmedDates: string;
   dotAccidentDetails: string;
+  addedToDocuments: boolean;
 }
 
 function triValue(v: boolean | null) {
@@ -55,6 +57,8 @@ export function ExperienceVerification({ entry }: { entry: VerifEntry }) {
   const [sendMsg, setSendMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [copying, startCopy] = useTransition();
   const [resending, startResend] = useTransition();
+  const [adding, startAdd] = useTransition();
+  const [added, setAdded] = useState(entry.addedToDocuments);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -80,6 +84,20 @@ export function ExperienceVerification({ entry }: { entry: VerifEntry }) {
       setSendMsg(null);
       const res = await resendVerification(entry.id);
       setSendMsg(res.ok ? { ok: true, text: "Request resent" } : { ok: false, text: res.error ?? "Failed" });
+    });
+  };
+
+  const addToDocuments = () => {
+    setMenuOpen(false);
+    startAdd(async () => {
+      setSendMsg(null);
+      const res = await addVerificationToDocuments(entry.id);
+      if (res.ok) {
+        setAdded(true);
+        setSendMsg({ ok: true, text: added ? "Verification updated in Documents" : "Added to the driver's Documents" });
+      } else {
+        setSendMsg({ ok: false, text: res.error ?? "Failed" });
+      }
     });
   };
 
@@ -146,7 +164,17 @@ export function ExperienceVerification({ entry }: { entry: VerifEntry }) {
                 <MoreVertical className="h-4 w-4" />
               </Button>
               {menuOpen && (
-                <div className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                <div className="absolute right-0 z-20 mt-1 w-52 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                  <button
+                    type="button"
+                    onClick={addToDocuments}
+                    disabled={adding}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    {added ? <Check className="h-4 w-4 text-green-600" /> : <FilePlus2 className="h-4 w-4" />}
+                    {adding ? "Adding…" : added ? "Update in Documents" : "Add to Documents"}
+                  </button>
+                  <div className="my-1 border-t border-slate-100" />
                   <button
                     type="button"
                     onClick={resend}
