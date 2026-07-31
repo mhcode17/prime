@@ -80,6 +80,17 @@ const GRAY = rgb(0.42, 0.47, 0.53);
 const BLUE = rgb(0.16, 0.5, 0.85);
 const NAVY = rgb(0.11, 0.16, 0.24);
 const BLACK = rgb(0, 0, 0);
+const WHITE = rgb(1, 1, 1);
+
+// Filled 24×24 Material-style icon paths for the header contact badges.
+const CONTACT_ICONS: Record<string, string> = {
+  phone:
+    "M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z",
+  email:
+    "M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z",
+  place:
+    "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z",
+};
 
 function dataUrlToBytes(u: string): Uint8Array {
   const b64 = u.includes(",") ? u.split(",")[1] : u;
@@ -129,9 +140,17 @@ export async function generateVerificationPdf(d: VerificationPdfData): Promise<U
     if (x2 > x1) page.drawLine({ start: { x: x1, y: y - dy }, end: { x: x2, y: y - dy }, thickness: 0.7, color: DARK });
   };
 
+  const contactBadge = (cx: number, cy: number, type: string) => {
+    page.drawCircle({ x: cx, y: cy, size: 8, color: NAVY });
+    const scale = 0.46; // 24 * 0.46 ≈ 11px glyph
+    const sz = 24 * scale;
+    page.drawSvgPath(CONTACT_ICONS[type], { x: cx - sz / 2, y: cy + sz / 2, scale, color: WHITE });
+  };
+
   const drawHeader = () => {
     if (logoImg) {
-      const boxTop = H - 24, boxH = 48, boxW = 236;
+      // Larger logo band so the mark reads clearly in the header.
+      const boxTop = H - 16, boxH = 64, boxW = 280;
       const s = Math.min(boxW / logoImg.width, boxH / logoImg.height);
       page.drawImage(logoImg, {
         x: margin,
@@ -140,22 +159,27 @@ export async function generateVerificationPdf(d: VerificationPdfData): Promise<U
         height: logoImg.height * s,
       });
     }
-    const lines = [d.companyPhone ?? "", d.companyEmail ?? "", d.companyAddressLine ?? ""];
-    const cys = [H - 30, H - 44, H - 58];
-    lines.forEach((ln, i) => {
-      if (!ln) return;
-      const size = 8.5;
-      page.drawText(ln, { x: right - 16 - w(ln, size), y: cys[i], size, font, color: DARK });
-      page.drawCircle({ x: right - 6, y: cys[i] + 3, size: 5, color: NAVY });
+    const items = [
+      { t: d.companyPhone ?? "", icon: "phone" },
+      { t: d.companyEmail ?? "", icon: "email" },
+      { t: d.companyAddressLine ?? "", icon: "place" },
+    ].filter((x) => x.t);
+    const size = 9;
+    const lh = 20;
+    const startCy = H - 50 + ((items.length - 1) * lh) / 2;
+    items.forEach((it, i) => {
+      const cy = startCy - i * lh;
+      page.drawText(it.t, { x: right - 24 - w(it.t, size), y: cy - 3, size, font, color: DARK });
+      contactBadge(right - 9, cy, it.icon);
     });
-    page.drawLine({ start: { x: margin, y: H - 74 }, end: { x: right, y: H - 74 }, thickness: 2.4, color: BLUE });
+    page.drawLine({ start: { x: margin, y: H - 88 }, end: { x: right, y: H - 88 }, thickness: 2.4, color: BLUE });
   };
 
-  const newPage = () => { page = pdf.addPage([W, H]); drawHeader(); y = H - 96; };
+  const newPage = () => { page = pdf.addPage([W, H]); drawHeader(); y = H - 104; };
   const ensure = (space: number) => { if (y - space < bottomY) newPage(); };
 
   drawHeader();
-  y = H - 96;
+  y = H - 104;
 
   // Document title
   const title = "SAFETY PERFORMANCE HISTORY RECORDS REQUEST";
