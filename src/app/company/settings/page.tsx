@@ -9,7 +9,7 @@ export default async function CompanySettingsPage() {
   const { company } = await requireCompanyOwner();
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div>
       <PageHeader
         title="Company Settings"
         description="Edit your company profile. Account status is managed by the platform admin."
