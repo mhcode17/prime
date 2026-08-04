@@ -29,6 +29,7 @@ export async function GET(
   return new NextResponse(bytes, {
     headers: {
       "Content-Type": mime,
+      "X-Content-Type-Options": "nosniff",
       "Cache-Control": "private, max-age=86400",
     },
   });

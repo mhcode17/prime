@@ -24,12 +24,14 @@ export async function submitVerification(
   if (!exp) return { error: "This link is invalid or has expired." };
   if (exp.respondedAt) return { error: "This verification has already been submitted." };
 
-  const responderName = String(formData.get("responderName") ?? "").trim();
-  const responderTitle = String(formData.get("responderTitle") ?? "").trim();
+  const clamp = (v: FormDataEntryValue | null, max: number) => String(v ?? "").trim().slice(0, max);
+  const responderName = clamp(formData.get("responderName"), 200);
+  const responderTitle = clamp(formData.get("responderTitle"), 200);
   const signature = String(formData.get("signature") ?? "").trim();
   const consent = formData.get("consent");
   if (!responderName) return { error: "Please enter your name" };
   if (!signature) return { error: "Please sign at the bottom" };
+  if (signature.length > 2_000_000) return { error: "Signature image is too large." };
   if (!consent) return { error: "Please confirm the information is accurate" };
 
   // Part 2 — accidents table

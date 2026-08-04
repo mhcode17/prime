@@ -14,6 +14,16 @@ function fmtDate(d: Date | null): string {
   return d.toLocaleDateString("en-US", { year: "numeric", month: "short" });
 }
 
+/** Escape user-controlled values before interpolating them into HTML email. */
+function esc(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function baseUrl(): string {
   return (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
 }
@@ -77,13 +87,13 @@ ${company.name}`;
   const html = `
     <div style="font-family:Arial,sans-serif;font-size:14px;color:#0f172a;line-height:1.5">
       <p>Hello,</p>
-      <p><b>${company.name}</b> is verifying the prior employment of <b>${driverName}</b>, who reports working at <b>${exp.employerName}</b> (${period}).</p>
+      <p><b>${esc(company.name)}</b> is verifying the prior employment of <b>${esc(driverName)}</b>, who reports working at <b>${esc(exp.employerName)}</b> (${esc(period)}).</p>
       <p>Please complete the secure online verification form — confirm dates, position, rehire eligibility, DOT drug &amp; alcohol history and accidents, then sign:</p>
       <p style="margin:20px 0">
-        <a href="${link}" style="background:#2563eb;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;display:inline-block;font-weight:bold">Complete verification →</a>
+        <a href="${esc(link)}" style="background:#2563eb;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;display:inline-block;font-weight:bold">Complete verification →</a>
       </p>
-      <p style="color:#64748b;font-size:12px">Or open this link: <a href="${link}">${link}</a></p>
-      <p>Thank you,<br/>${company.name}</p>
+      <p style="color:#64748b;font-size:12px">Or open this link: <a href="${esc(link)}">${esc(link)}</a></p>
+      <p>Thank you,<br/>${esc(company.name)}</p>
     </div>`;
 
   try {
@@ -200,10 +210,10 @@ ${company.name}`;
   const html = `
     <div style="font-family:Arial,sans-serif;font-size:14px;color:#0f172a;line-height:1.5">
       <p>Hello,</p>
-      <p><b>${company.name}</b> is verifying the prior employment of <b>${driverName}</b>, who reports working at <b>${exp.employerName}</b> (${period}).</p>
-      <p style="margin:20px 0"><a href="${link}" style="background:#2563eb;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;display:inline-block;font-weight:bold">Complete verification →</a></p>
-      <p style="color:#64748b;font-size:12px">Or open this link: <a href="${link}">${link}</a></p>
-      <p>Thank you,<br/>${company.name}</p>
+      <p><b>${esc(company.name)}</b> is verifying the prior employment of <b>${esc(driverName)}</b>, who reports working at <b>${esc(exp.employerName)}</b> (${esc(period)}).</p>
+      <p style="margin:20px 0"><a href="${esc(link)}" style="background:#2563eb;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;display:inline-block;font-weight:bold">Complete verification →</a></p>
+      <p style="color:#64748b;font-size:12px">Or open this link: <a href="${esc(link)}">${esc(link)}</a></p>
+      <p>Thank you,<br/>${esc(company.name)}</p>
     </div>`;
 
   try {

@@ -2,6 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 import type { Role } from "@prisma/client";
+import { prisma } from "@/lib/db";
 
 const COOKIE_NAME = "tc_session";
 const MAX_AGE = 60 * 60 * 24 * 7; // 7 days
@@ -41,12 +42,32 @@ export async function getSession(): Promise<SessionPayload | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) return null;
+
+  let userId: string;
   try {
     const { payload } = await jwtVerify(token, getSecret());
-    return payload as unknown as SessionPayload;
+    userId = String((payload as { userId?: unknown }).userId ?? "");
   } catch {
     return null;
   }
+  if (!userId) return null;
+
+  // Authoritative check against the DB so that deactivated/removed users lose
+  // access immediately (not only after the 7-day JWT expires), and role/company
+  // are re-derived rather than trusted from a potentially stale token.
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, role: true, isActive: true, companyId: true, firstName: true, lastName: true, email: true },
+  });
+  if (!user || !user.isActive) return null;
+
+  return {
+    userId: user.id,
+    role: user.role,
+    companyId: user.companyId,
+    name: `${user.firstName} ${user.lastName}`,
+    email: user.email,
+  };
 }
 
 export async function destroySession(): Promise<void> {
