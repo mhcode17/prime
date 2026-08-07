@@ -11,6 +11,7 @@ import { DriverStatusActions } from "./status-actions";
 import { DriverInfoForm } from "./info-form";
 import { ExperienceVerification, type VerifEntry } from "./experience-verification";
 import { AgreementsSection, type AgreementRow } from "./agreements-section";
+import { DriverPasswordForm } from "./driver-password-form";
 import {
   FileSignature,
   ShieldCheck,
@@ -236,6 +237,15 @@ export default async function DriverDetailPage({
               })}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Driver login</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DriverPasswordForm driverId={driver.id} email={driver.user.email} />
         </CardContent>
       </Card>
 

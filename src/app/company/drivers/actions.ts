@@ -157,3 +157,21 @@ export async function updateDriverInfo(
   revalidatePath(`/company/drivers/${d.driverId}`);
   return { ok: true };
 }
+
+/** Company sets a new login password for one of its drivers. */
+export async function setDriverPassword(
+  _prev: { error?: string; ok?: boolean } | undefined,
+  formData: FormData,
+): Promise<{ error?: string; ok?: boolean }> {
+  const driverId = String(formData.get("driverId") ?? "");
+  const password = String(formData.get("password") ?? "");
+  if (password.length < 8) return { error: "Password must be at least 8 characters" };
+  if (password.length > 200) return { error: "Password is too long" };
+
+  const { driver } = await assertOwnDriver(driverId);
+  await prisma.user.update({
+    where: { id: driver.userId },
+    data: { passwordHash: await hashPassword(password) },
+  });
+  return { ok: true };
+}
