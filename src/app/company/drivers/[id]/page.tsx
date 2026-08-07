@@ -10,6 +10,7 @@ import { formatDate, formatDateTime, toDateInput, initials } from "@/lib/utils";
 import { DriverStatusActions } from "./status-actions";
 import { DriverInfoForm } from "./info-form";
 import { ExperienceVerification, type VerifEntry } from "./experience-verification";
+import { AgreementsSection, type AgreementRow } from "./agreements-section";
 import {
   FileSignature,
   ShieldCheck,
@@ -44,9 +45,30 @@ export default async function DriverDetailPage({
       experiences: {
         orderBy: [{ isCurrent: "desc" }, { startDate: "desc" }],
       },
+      agreements: {
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
   if (!driver) notFound();
+
+  const agreementRows: AgreementRow[] = driver.agreements.map((a) => {
+    const terms =
+      a.compensationPercent
+        ? `${a.compensationPercent}% of gross`
+        : a.cpm
+          ? `${a.cpm} CPM`
+          : "Terms not set";
+    return {
+      id: a.id,
+      status: a.status,
+      token: a.token,
+      contractorName: a.contractorName || `${driver.user.firstName} ${driver.user.lastName}`,
+      terms,
+      signedInfo: a.signedAt ? `Signed ${formatDateTime(a.signedAt)}` : a.sentAt ? `Sent ${formatDateTime(a.sentAt)}` : "",
+      addedToDocuments: !!a.agreementDocumentId,
+    };
+  });
 
   const pendingDocs = driver.documentAssignments.filter((a) =>
     ["SENT", "VIEWED"].includes(a.status),
@@ -214,6 +236,20 @@ export default async function DriverDetailPage({
               })}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Agreements ({driver.agreements.length})</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <AgreementsSection
+            driverId={driver.id}
+            driverName={`${driver.user.firstName} ${driver.user.lastName}`}
+            driverEmail={driver.user.email}
+            agreements={agreementRows}
+          />
         </CardContent>
       </Card>
     </div>

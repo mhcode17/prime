@@ -193,9 +193,51 @@ model Driver {
   appointments        Appointment[]
   truckAssignments    EquipmentAssignment[]
   experiences         DriverExperience[]
+  agreements          DriverAgreement[]
 
   @@index([companyId])
   @@index([status])
+}
+
+enum AgreementStatus {
+  SENT // created / awaiting the driver's signature
+  SIGNED
+  VOIDED
+}
+
+// A Driver Independent Contractor Agreement sent by the company for the driver
+// to sign. Signed via a tokenized page (also surfaced in the driver portal).
+model DriverAgreement {
+  id       String @id @default(cuid())
+  driverId String
+  driver   Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  // Company-filled terms (everything else in the contract is fixed text).
+  contractorName          String?
+  compensationPercent     String?
+  cpm                     String?
+  securityDeposit         String?
+  depositWeeklyInstallment String?
+  equipmentLessor         String?
+
+  status    AgreementStatus @default(SENT)
+  token     String? // public signing link token (UUID)
+  sentAt    DateTime?
+
+  // Signature capture
+  signerName      String?
+  signerSignature String?   @db.Text // drawn signature (data URL)
+  signedAt        DateTime?
+  signerIp        String?
+
+  // When filed into the driver's Documents (idempotent re-add).
+  agreementDocumentId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([driverId])
+  @@index([token])
 }
 
 enum VerificationStatus {
